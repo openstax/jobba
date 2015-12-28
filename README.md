@@ -1,10 +1,13 @@
 # jobba
 
+[![Build Status](https://travis-ci.org/openstax/jobba.svg?branch=master)](https://travis-ci.org/openstax/jobba)
+[![Code Climate](https://codeclimate.com/github/openstax/jobba/badges/gpa.svg)](https://codeclimate.com/github/openstax/jobba)
+
 Redis-based background job status tracking.
 
 ## Configuration
 
-To configure Lev, put the following code in your applications
+To configure Jobba, put the following code in your applications
 initialization logic (eg. in the config/initializers in a Rails app)
 
 ```ruby
