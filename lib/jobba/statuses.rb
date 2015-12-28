@@ -1,0 +1,4 @@
+class Jobba::Statuses
+
+
+end

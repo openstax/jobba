@@ -1,0 +1,12 @@
+sudo: false
+language: ruby
+rvm:
+  - 2.2.3
+cache: bundler
+bundler_args: --retry=6
+script:
+  - bundle exec rake
+services:
+  - redis-server
+notifications:
+  email: false
