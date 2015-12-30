@@ -42,12 +42,14 @@ module Jobba
 
     State::ALL.each do |state|
       define_method("#{state.name}!") do
-        return if state == self.state
+        return self if state == self.state
 
         redis.multi do
           leave_current_state!
           enter_state!(state)
         end
+
+        self
       end
 
       define_method("#{state.name}?") do
@@ -78,6 +80,14 @@ module Jobba
     def set_progress(at, out_of = nil)
       progress = compute_fractional_progress(at, out_of)
       set(progress: progress)
+    end
+
+    def set_job_name(job_name)
+      raise NotYetImplemented
+    end
+
+    def add_job_arg(job_arg)
+      raise NotYetImplemented
     end
 
     # def add_error(error, options = { })

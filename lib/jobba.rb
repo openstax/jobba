@@ -3,9 +3,11 @@ require "redis-namespace"
 
 require "jobba/version"
 require "jobba/configuration"
+require "jobba/common"
 require "jobba/state"
 require "jobba/status"
 require "jobba/statuses"
+require "jobba/query"
 
 module Jobba
 
@@ -36,9 +38,9 @@ module Jobba
 
 # TODO would be nice to have some tests that test scale
 
-  def queued
+  # def queued
 
-  end
+  # end
 
 
   def self.redis
