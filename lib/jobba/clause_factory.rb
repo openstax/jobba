@@ -8,7 +8,7 @@ class Jobba::ClauseFactory
                            "accepted in a Jobba `where` call"
     end
 
-    case key
+    case key.to_sym
     when :state
       state_clause(value)
     when :job_name
@@ -57,7 +57,7 @@ class Jobba::ClauseFactory
   def self.validate_state_name!(state_name)
     [state_name].flatten.each do |name|
       if Jobba::State::ALL.none?{|state| state.name == name.to_s}
-        raise ArgumentError, "'#{state}' is not a valid timestamp."
+        raise ArgumentError, "'#{name}' is not a valid timestamp."
       end
     end
   end
