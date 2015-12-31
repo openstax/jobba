@@ -49,6 +49,7 @@ describe Jobba::Status do
       expect(status.progress).to eq 0
       expect(status.errors).to be_empty
       expect(status.data).to be_empty
+      expect(status.recorded_at).to be_a(Time)
     end
 
     it 'creates an unknown status when the status is not in redis' do

@@ -21,6 +21,7 @@ end
 
 ## TODO
 
+1. TEST IN REAL REDIS! (recorded_at not getting set?)
 1. Clearing jobs should get rid of all traces.
 2. Need to track job names and important arguments.
 3. add_error
@@ -28,6 +29,8 @@ end
 5. Note in readme that Time objects expected or (floats that are seconds since epoch) or integers that are usecs since epoch or strings that are usecs since epoch
   * even if OS supports ns time, this gem ignores nanoseconds
 6. clause and clause factory specs
+7. Note in readme: "kill requested" isn't really a state but rather a condition -- while kill is requested the job is still in some other state (eg still "working"). only when it is actually killed does it change states (to "killed")
+8. Specs that test scale
 
 
 
