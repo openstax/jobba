@@ -2,6 +2,7 @@ require "redis"
 require "redis-namespace"
 
 require "jobba/version"
+require "jobba/exceptions"
 require "jobba/time"
 require "jobba/utils"
 require "jobba/configuration"

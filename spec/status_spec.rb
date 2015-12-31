@@ -242,4 +242,60 @@ describe Jobba::Status do
     end
   end
 
+  describe '#delete!' do
+    it 'gets rid of all knowledge of the status' do
+      status = described_class.create!
+      status.set_job_name("do_stuff")
+      status.add_job_arg(:foo, "gid://app/MyModel/42")
+      status.queued!.working!
+      status.request_kill!
+      status.delete!
+      expect(Jobba.redis.keys("*").count).to eq 0
+    end
+  end
+
+  describe '#delete' do
+    it 'prevents an incomplete status from being deleted' do
+      status = described_class.create!
+      expect{status.delete}.to raise_error(Jobba::NotCompletedError)
+    end
+  end
+
+  describe '#add_job_name' do
+    before(:each) {
+      @status = described_class.create!
+      @status.set_job_name("fluffy")
+    }
+
+    it 'returns job args' do
+      expect(@status.job_name).to eq "fluffy"
+    end
+
+    it 'survives a reload' do
+      status = Jobba::Status.find(@status.id)
+      expect(status.job_name).to eq "fluffy"
+    end
+  end
+
+  describe '#add_job_arg' do
+    before(:each) {
+      @status = described_class.create!
+
+      @status.add_job_arg(:arg1, "blah")
+      @status.add_job_arg('arg2', "42")
+    }
+
+    it 'returns job args' do
+      expect(@status.job_args['arg1']).to eq "blah"
+      expect(@status.job_args[:arg2]).to eq "42"
+    end
+
+    it 'survives a reload' do
+      status = Jobba::Status.find(@status.id)
+
+      expect(status.job_args['arg1']).to eq "blah"
+      expect(status.job_args[:arg2]).to eq "42"
+    end
+  end
+
 end

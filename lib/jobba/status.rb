@@ -1,4 +1,5 @@
 require 'json'
+require 'ostruct'
 
 module Jobba
   class Status
@@ -19,7 +20,13 @@ module Jobba
     # Finds the job with the specified ID and returns it.  If no such ID
     # exists in the store, returns nil.
     def self.find(id)
-      ( result = redis.hgetall(job_key(id)) ).empty? ? nil : new(raw: result)
+      if ( raw_hash = redis.hgetall(job_key(id)) ).empty?
+        nil
+      else
+        # add job_args which are stored in separate hash
+        raw_hash['job_args'] = redis.hgetall(job_args_key(id)).to_json
+        new(raw: raw_hash)
+      end
     end
 
     # If the attributes are nil, the attribute accessors lazily parse their values
@@ -27,7 +34,7 @@ module Jobba
     # As an extra step, convert state names into State objects.
 
     (
-      %w(id state progress errors data kill_requested_at) +
+      %w(id state progress errors data kill_requested_at job_name job_args) +
       State::ALL.collect(&:timestamp_name)
     )
     .each do |attribute|
@@ -56,7 +63,6 @@ module Jobba
 
       define_method("#{state.name}?") do
         state == self.state
-        # redis.sismember(state.name, id)
       end
     end
 
@@ -85,11 +91,24 @@ module Jobba
     end
 
     def set_job_name(job_name)
-      raise NotYetImplemented
+      raise ArgumentError, "`job_name` must not be blank" if job_name.nil? || job_name.empty?
+      raise StandardError, "`job_name` can only be set once" if !self.job_name.nil?
+
+      redis.multi do
+        set(job_name: job_name)
+        redis.sadd(job_name_key, id)
+      end
     end
 
-    def add_job_arg(job_arg)
-      raise NotYetImplemented
+    def add_job_arg(arg_name, arg)
+      raise ArgumentError, "`arg_name` must not be blank" if arg_name.nil? || arg_name.empty?
+      raise ArgumentError, "`arg` must not be blank" if arg.nil? || arg.empty?
+
+      redis.multi do
+        self.job_args[arg_name.to_sym] = arg
+        redis.hset(job_args_key, arg_name, arg)
+        redis.sadd(job_arg_key(arg), id)
+      end
     end
 
     # def add_error(error, options = { })
@@ -103,6 +122,32 @@ module Jobba
 
     def save(data)
       set(data: data)
+    end
+
+    def delete
+      completed? ?
+        delete! :
+        raise(NotCompletedError, "This status cannot be deleted because it " \
+                                 "isn't complete.  Use `delete!` if you want to " \
+                                 "delete anyway.")
+    end
+
+    def delete!
+      redis.multi do
+        redis.del(job_key)
+
+        State::ALL.each do |state|
+          redis.srem(state.name, id)
+          redis.zrem(state.timestamp_name, id)
+        end
+
+        redis.srem(job_name_key, id)
+
+        redis.del(job_args_key)
+        job_args.marshal_dump.values.each do |arg|
+          redis.srem(job_arg_key(arg), id)
+        end
+      end
     end
 
     protected
@@ -129,12 +174,14 @@ module Jobba
 
       if (@json_encoded_attrs = attrs[:raw])
         @json_encoded_attrs['data'] ||= "{}"
+        @json_encoded_attrs['job_args'] ||= "{}"
       else
         @id       = attrs[:id]       || attrs['id']       || SecureRandom.uuid
         @state    = attrs[:state]    || attrs['state']    || State::UNKNOWN
         @progress = attrs[:progress] || attrs['progress'] || 0
         @errors   = attrs[:errors]   || attrs['errors']   || []
         @data     = attrs[:data]     || attrs['data']     || {}
+        @job_args = OpenStruct.new # TODO need this and the above job args init?
 
         if attrs[:persist]
           redis.multi do
@@ -158,6 +205,8 @@ module Jobba
         State.from_name(attribute)
       when /.*_at/
         attribute.nil? ? nil : Jobba::Utils.time_from_usec_int(attribute.to_i)
+      when 'job_args'
+        OpenStruct.new(attribute)
       else
         attribute
       end
@@ -186,6 +235,10 @@ module Jobba
       Jobba.redis.hmset(job_key, *redis_key_value_array)
     end
 
+    def job_name_key
+      "job_name:#{job_name}"
+    end
+
     def job_key
       self.class.job_key(@id)
     end
@@ -193,6 +246,19 @@ module Jobba
     def self.job_key(id)
       raise(ArgumentError, "`id` cannot be nil") if id.nil?
       "id:#{id}"
+    end
+
+    def job_args_key
+      self.class.job_args_key(id)
+    end
+
+    def self.job_args_key(id)
+      raise(ArgumentError, "`id` cannot be nil") if id.nil?
+      "job_args:#{id}"
+    end
+
+    def job_arg_key(arg)
+      "job_arg:#{arg}"
     end
 
     def compute_fractional_progress(at, out_of)
