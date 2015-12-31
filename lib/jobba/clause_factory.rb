@@ -50,8 +50,10 @@ class Jobba::ClauseFactory
   end
 
   def self.validate_state_name!(state_name)
-    if Jobba::State::ALL.none?{|state| state.name == state_name.to_s}
-      raise ArgumentError, "'#{state}' is not a valid timestamp."
+    [state_name].flatten.each do |name|
+      if Jobba::State::ALL.none?{|state| state.name == name.to_s}
+        raise ArgumentError, "'#{state}' is not a valid timestamp."
+      end
     end
   end
 

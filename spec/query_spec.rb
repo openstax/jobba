@@ -26,11 +26,37 @@ describe Jobba::Query do
     expect{where(working_at: [nil, nil])}.to raise_error(ArgumentError)
   end
 
+  it 'can get statuses from multiple states' do
+    unqueued = make_status(state: :unqueued, id: :unqueued)
+    queued   = make_status(state: :queued, id: :queued_1)
+    working  = make_status(state: :working, id: :working_1)
+
+    expect(
+      where(state: [:unqueued, :working]).ids
+    ).to contain_exactly(unqueued.id, working.id)
+  end
+
+  it 'returns all statuses when not run on a chain' do
+    unqueued = make_status(state: :unqueued, id: :unqueued)
+    queued   = make_status(state: :queued, id: :queued_1)
+    working  = make_status(state: :working, id: :working_1)
+
+    expect(
+      described_class.new.all.collect(&:id)
+    ).to contain_exactly(unqueued.id, queued.id, working.id)
+  end
+
+  it 'counts `where` results without bringing statuses back from redis' do
+    queued   = make_status(state: :queued, id: :queued_1)
+    working  = make_status(state: :working, id: :working_1)
+
+    expect(Jobba.redis).not_to receive(:mget)
+    expect(where(state: :working).count).to eq 1
+  end
+
   # describe 'timestamp queries' do
   #   it 'works with the bracket notation'
   # end
-
-  # TODO test where(state: queued, recorded_at: [blah])
 
   context 'query scenario 1' do
     let!(:unqueued)    { make_status(state: :unqueued, id: :unqueued) }
@@ -46,10 +72,18 @@ describe Jobba::Query do
       expect(where(state: :queued).where(recorded_at: [nil, time_1]).ids).to eq [queued_1.id]
     end
 
+    it 'can get statuses with multiple conditions in one `where`' do
+      expect(where(state: :queued, recorded_at: [nil, time_1]).ids).to eq [queued_1.id]
+    end
+
     it 'can get statuses for multiple timestamps' do
       expect(
         where(queued_at: [time_1, nil]).where(started_at: [nil, time_2]).ids
       ).to eq [working_2.id]
+
+      expect(
+        where(queued_at: [time_1, nil]).where(started_at: [time_2, nil]).ids
+      ).to eq [working_3.id]
     end
 
     it 'does not leave temporary keys around' do

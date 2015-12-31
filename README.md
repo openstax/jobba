@@ -26,3 +26,31 @@ end
 3. add_error
 4. enforce order progression of states (no skipping)
 5. Note in readme that Time objects expected or (floats that are seconds since epoch) or integers that are usecs since epoch or strings that are usecs since epoch
+6. clause and clause factory specs
+
+
+
+
+```ruby
+  # Jobba.queued # those jobs that are currently queued
+  # Jobba.queued(between: [t1, t2]) # those jobs that were queued between the times
+  #   # is this queued_at(betweent: ...)?  or queued_between(t1,t2)
+  # Jobba.queued(between: [t1, t2]).kill # kill all jobs queued in that time range
+  # Jobba.queued(after: t1).completed(before: t2)
+  # Jobba.job_named('job_name')
+  # Jobba.job_named('job_name').failed
+  # Jobba.failed.job_named('job_name')
+  # Jobba.succeeded.duration.average
+  # Jobba.succeeded(before: 1.week.ago).clear
+  # Jobba.completed
+  # Jobba.incomplete
+  # Jobba.failed.time_descending
+  # Jobba.for_arg(some_argument)  # job needs to note the status itself
+  # Jobba.all
+  # Jobba.job_names  # return all known job names
+
+  # ----------
+
+  # Jobba.where(state: :queued).where(job_name: 'blah')
+  # Jobba.where(state: [:queued, :unqueued])
+```
