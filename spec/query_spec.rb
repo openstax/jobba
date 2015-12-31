@@ -62,10 +62,10 @@ describe Jobba::Query do
     let!(:unqueued)    { make_status(state: :unqueued, id: :unqueued) }
     let!(:queued_1)    { make_status(state: :queued, id: :queued_1) }
     let!(:working_1)   { make_status(state: :working, id: :working_1) }
-    let!(:time_1)      { Time.now }
+    let!(:time_1)      { Jobba::Time.now }
     let!(:queued_2)    { make_status(state: :queued, id: :queued_2) }
     let!(:working_2)   { make_status(state: :working, id: :working_2) }
-    let!(:time_2)      { Time.now }
+    let!(:time_2)      { Jobba::Time.now }
     let!(:working_3)   { make_status(state: :working, id: :working_3) }
 
     it 'can get statuses for a state and a timestamp' do

@@ -210,7 +210,7 @@ module Jobba
     end
 
     def now
-      [time = Time.now.round(6), Utils.time_to_usec_int(time)]
+      [time = Jobba::Time.now, Utils.time_to_usec_int(time)]
     end
 
   end

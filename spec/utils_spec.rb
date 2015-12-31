@@ -3,7 +3,7 @@ require 'spec_helper'
 describe Jobba::Utils do
 
   describe '#time_to_usec_int' do
-    let!(:time)     { Time.new(2015,12,28) }
+    let!(:time)     { Jobba::Time.new(2015,12,28) }
     let!(:usec_int) { 1451289600000000 }
 
     it 'gives the expected output for Time input' do
@@ -24,7 +24,7 @@ describe Jobba::Utils do
   end
 
   describe '#time_from_usec_int' do
-    let!(:time)     { Time.now }
+    let!(:time)     { Jobba::Time.now }
 
     it 'converts correctly' do
       usec_int = described_class.time_to_usec_int(time)
