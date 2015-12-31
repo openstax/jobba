@@ -4,7 +4,8 @@ class Jobba::ClauseFactory
 
   def self.new_clause(key, value)
     if value.nil?
-      raise ArgumentError, "Nil search criteria are not accepted in a Jobba `where` call"
+      raise ArgumentError, "Nil search criteria are not currently " \
+                           "accepted in a Jobba `where` call"
     end
 
     case key

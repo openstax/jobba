@@ -32,9 +32,11 @@ class Jobba::Clause
     # already sorted gives us a safe place to filter out values without
     # perturbing the original sorted set).
 
-    redis.zunionstore(new_key, keys)
-    redis.zremrangebyscore(new_key, '-inf', "(#{min}") unless min.nil?
-    redis.zremrangebyscore(new_key, "(#{max}", '+inf') unless max.nil?
+    if !keys.empty?
+      redis.zunionstore(new_key, keys)
+      redis.zremrangebyscore(new_key, '-inf', "(#{min}") unless min.nil?
+      redis.zremrangebyscore(new_key, "(#{max}", '+inf') unless max.nil?
+    end
 
     new_key
   end
