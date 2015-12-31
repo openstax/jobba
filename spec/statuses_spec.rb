@@ -64,4 +64,35 @@ describe Jobba::Statuses do
     end
   end
 
+  context 'deletion' do
+    let!(:queued)    { make_status(state: :queued, id: :queued) }
+    let!(:failed)    { make_status(state: :failed, id: :failed) }
+    let!(:succeeded) { make_status(state: :succeeded, id: :succeeded) }
+
+    let!(:statuses) { described_class.new(queued.id, failed.id, succeeded.id)}
+
+    it 'does not delete when there are some incomplete' do
+      expect{statuses.delete}.to raise_error(Jobba::NotCompletedError)
+      expect(statuses.count).to eq 3
+    end
+
+    it 'does delete! when there are some incomplete' do
+      expect{statuses.delete!}.to_not raise_error
+      expect(statuses.count).to eq 0
+      expect(statuses.all).to eq []
+      expect(Jobba.redis.keys("*").count).to eq 0
+    end
+  end
+
+  it 'can bulk request kill' do
+    queued =  make_status(state: :queued, id: :queued)
+    working = make_status(state: :working, id: :working)
+
+    statuses = described_class.new(queued.id, working.id)
+
+    statuses.request_kill!
+    expect(queued.reload!.kill_requested?).to be_truthy
+    expect(working.reload!.kill_requested?).to be_truthy
+  end
+
 end

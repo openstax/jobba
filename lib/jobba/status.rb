@@ -20,24 +20,29 @@ module Jobba
     # Finds the job with the specified ID and returns it.  If no such ID
     # exists in the store, returns nil.
     def self.find(id)
-      if ( raw_hash = redis.hgetall(job_key(id)) ).empty?
-        nil
+      if (hash = raw_redis_hash(id))
+        new(raw: hash)
       else
-        # add job_args which are stored in separate hash
-        raw_hash['job_args'] = redis.hgetall(job_args_key(id)).to_json
-        new(raw: raw_hash)
+        nil
       end
+    end
+
+    def self.local_attrs
+      %w(id state progress errors data kill_requested_at job_name job_args) +
+      State::ALL.collect(&:timestamp_name)
+    end
+
+    def reload!
+      @json_encoded_attrs = self.class.raw_redis_hash(id)
+      self.class.local_attrs.each{|aa| send("#{aa}=",nil)}
+      self
     end
 
     # If the attributes are nil, the attribute accessors lazily parse their values
     # from the JSON retrieved from redis.  That way there's no parsing that isn't used.
     # As an extra step, convert state names into State objects.
 
-    (
-      %w(id state progress errors data kill_requested_at job_name job_args) +
-      State::ALL.collect(&:timestamp_name)
-    )
-    .each do |attribute|
+    local_attrs.each do |attribute|
       class_eval <<-eoruby
         def #{attribute}
           @#{attribute} ||= load_from_json_encoded_attrs('#{attribute}')
@@ -156,6 +161,18 @@ module Jobba
       new(attrs.merge!(persist: true))
     end
 
+    def self.raw_redis_hash(id)
+      main_hash, job_args_hash = redis.multi do
+        redis.hgetall(job_key(id))
+        redis.hgetall(job_args_key(id))
+      end
+
+      return nil if main_hash.empty?
+
+      main_hash['job_args'] = job_args_hash.to_json if !job_args_hash.nil?
+      main_hash
+    end
+
     def leave_current_state!
       redis.srem(state.name, id)
     end
@@ -172,7 +189,9 @@ module Jobba
     def initialize(attrs = {})
       # If we get a raw hash, don't parse the attributes until they are requested
 
-      if (@json_encoded_attrs = attrs[:raw])
+      @json_encoded_attrs = attrs[:raw]
+
+      if !@json_encoded_attrs.nil? && !@json_encoded_attrs.empty?
         @json_encoded_attrs['data'] ||= "{}"
         @json_encoded_attrs['job_args'] ||= "{}"
       else
@@ -240,7 +259,7 @@ module Jobba
     end
 
     def job_key
-      self.class.job_key(@id)
+      self.class.job_key(id)
     end
 
     def self.job_key(id)
