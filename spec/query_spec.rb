@@ -96,7 +96,62 @@ describe Jobba::Query do
         expect(&query).not_to change{Jobba.redis.keys.count}
       end
     end
+  end
 
+  context 'job_name queries' do
+    let!(:status_1) { make_status(id: :status_1) }
+    let!(:status_2) { make_status(id: :status_2).tap{|ss| ss.set_job_name("fluffy")} }
+    let!(:status_3) { make_status(id: :status_3).tap{|ss| ss.set_job_name("fluffy")} }
+    let!(:status_4) { make_status(id: :status_4).tap{|ss| ss.set_job_name("yeehaw")} }
+
+    it 'finds statuses for one job name' do
+      expect(
+        where(job_name: "fluffy").ids
+      ).to contain_exactly(status_2.id, status_3.id)
+    end
+
+    it 'finds statuses for two job names' do
+      expect(
+        where(job_name: ["fluffy", "yeehaw"]).ids
+      ).to contain_exactly(status_2.id, status_3.id, status_4.id)
+    end
+
+    it 'returns no statuses for empty job_name search' do
+      expect(
+        where(job_name: []).ids
+      ).to be_empty
+    end
+  end
+
+  context 'job_arg queries' do
+    let!(:status_1) { make_status(id: :status_1) }
+    let!(:status_2) { make_status(id: :status_2).tap{|ss| ss.add_job_arg(:a, "A")} }
+    let!(:status_3) { make_status(id: :status_3).tap{|ss| ss.add_job_arg('b', "B")} }
+    let!(:status_4) { make_status(id: :status_4).tap{|ss| ss.add_job_arg('a', "A")} }
+
+    it 'finds statuses for one job arg that has one status' do
+      expect(
+        where(job_arg: "B").ids
+      ).to contain_exactly(status_3.id)
+    end
+
+    it 'finds statuses for one job arg that has two statuses' do
+      expect(
+        where(job_arg: "A").ids
+      ).to contain_exactly(status_2.id, status_4.id)
+    end
+
+    it 'finds statuses for multiple job args' do
+      expect(
+        where(job_arg: ["A", "B"]).ids
+      ).to contain_exactly(status_2.id, status_3.id, status_4.id)
+    end
+
+    it 'finds statuses for multiple job args with repeats' do
+      expect(
+        where(job_arg: ["A", "A"]).ids
+      ).to contain_exactly(status_2.id, status_4.id)
+    end
   end
 
   def where(options)

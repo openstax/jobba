@@ -3,13 +3,17 @@ require 'jobba/clause'
 class Jobba::ClauseFactory
 
   def self.new_clause(key, value)
+    if value.nil?
+      raise ArgumentError, "Nil search criteria are not accepted in a Jobba `where` call"
+    end
+
     case key
     when :state
       state_clause(value)
     when :job_name
-      Jobba::Clause.new(key: "job_name:#{value}")
-    when :for_arg
-      Jobba::Clause.new(key: "for_arg:#{value}")
+      Jobba::Clause.new(prefix: "job_name", suffixes: value)
+    when :job_arg
+      Jobba::Clause.new(prefix: "job_arg", suffixes: value)
     when /.*_at/
       timestamp_clause(key, value)
     else
@@ -41,12 +45,12 @@ class Jobba::ClauseFactory
     min = Jobba::Utils.time_to_usec_int(min)
     max = Jobba::Utils.time_to_usec_int(max)
 
-    Jobba::Clause.new(key: timestamp_name, min: min, max: max)
+    Jobba::Clause.new(keys: timestamp_name, min: min, max: max)
   end
 
   def self.state_clause(state)
     validate_state_name!(state)
-    Jobba::Clause.new(key: state)
+    Jobba::Clause.new(keys: state)
   end
 
   def self.validate_state_name!(state_name)
