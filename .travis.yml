@@ -10,3 +10,6 @@ services:
   - redis-server
 notifications:
   email: false
+env:
+  - USE_REAL_REDIS=false
+  - USE_REAL_REDIS=true
