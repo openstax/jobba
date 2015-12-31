@@ -67,8 +67,9 @@ module Jobba
     end
 
     def request_kill!
-      time = Time.now.to_f
-      if redis.hsetnx(job_key, :kill_requested_at, time)
+      time = Time.now
+      usec_int = Utils.time_to_usec_int(time)
+      if redis.hsetnx(job_key, :kill_requested_at, usec_int)
         @kill_requested_at = time
       end
     end
@@ -114,11 +115,12 @@ module Jobba
     end
 
     def enter_state!(state)
-      time = Time.now.to_f
-      set(state: state.name, state.timestamp_name => time)
+      time = Time.now
+      usec_int = Utils.time_to_usec_int(time)
+      set(state: state.name, state.timestamp_name => usec_int)
       self.state = state
       self.send("#{state.timestamp_name}=",time)
-      redis.zadd(state.timestamp_name, time, id)
+      redis.zadd(state.timestamp_name, usec_int, id)
       redis.sadd(state.name, id)
     end
 
@@ -150,7 +152,15 @@ module Jobba
     def load_from_json_encoded_attrs(attribute_name)
       json = (@json_encoded_attrs || {})[attribute_name]
       attribute = json.nil? ? nil : JSON.parse(json, quirks_mode: true)
-      'state' == attribute_name ? State.from_name(attribute) : attribute
+
+      case attribute_name
+      when 'state'
+        State.from_name(attribute)
+      when /.*_at/
+        attribute.nil? ? nil : Jobba::Utils.time_from_usec_int(attribute.to_i)
+      else
+        attribute
+      end
     end
 
     def set(incoming_hash)

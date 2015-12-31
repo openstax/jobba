@@ -9,7 +9,7 @@ describe Jobba::Status do
     expect(status.state).to eq Jobba::State::UNQUEUED
     expect(status.progress).to eq 0
     expect(status.errors).to be_empty
-    expect(status.recorded_at).to be_a Float
+    expect(status.recorded_at).to be_a Time
     expect(status.unqueued?).to be_truthy
 
     # check that it got saved to redis
@@ -59,7 +59,7 @@ describe Jobba::Status do
       expect(status.progress).to eq 0
       expect(status.errors).to be_empty
       expect(status.data).to be_empty
-      expect(status.recorded_at).to be_a(Float)
+      expect(status.recorded_at).to be_a(Time)
     end
   end
 
@@ -78,7 +78,7 @@ describe Jobba::Status do
 
       expect(status.state).to eq Jobba::State::UNQUEUED
       recorded_at = status.recorded_at
-      expect(recorded_at).to be_a Float
+      expect(recorded_at).to be_a Time
       expect(status.unqueued?).to be_truthy
       expect(status.incomplete?).to be_truthy
       expect(status.completed?).to be_falsy
@@ -86,7 +86,7 @@ describe Jobba::Status do
       status.queued!
 
       expect(status.state).to eq Jobba::State::QUEUED
-      expect(status.queued_at).to be_a Float
+      expect(status.queued_at).to be_a Time
       expect(status.unqueued?).to be_falsy
       expect(status.queued?).to be_truthy
       expect(status.recorded_at).to eq recorded_at
@@ -97,7 +97,7 @@ describe Jobba::Status do
       status = Jobba::Status.find(status.id)
 
       expect(status.state).to eq Jobba::State::QUEUED
-      expect(status.queued_at).to be_a Float
+      expect(status.queued_at).to be_a Time
       expect(status.unqueued?).to be_falsy
       expect(status.queued?).to be_truthy
       expect(status.incomplete?).to be_truthy
@@ -106,7 +106,7 @@ describe Jobba::Status do
       status.working!
 
       expect(status.state).to eq Jobba::State::WORKING
-      expect(status.started_at).to be_a Float
+      expect(status.started_at).to be_a Time
       expect(status.queued?).to be_falsy
       expect(status.working?).to be_truthy
       expect(status.incomplete?).to be_truthy
@@ -115,7 +115,7 @@ describe Jobba::Status do
       status.succeeded!
 
       expect(status.state).to eq Jobba::State::SUCCEEDED
-      expect(status.succeeded_at).to be_a Float
+      expect(status.succeeded_at).to be_a Time
       expect(status.working?).to be_falsy
       expect(status.succeeded?).to be_truthy
       expect(status.incomplete?).to be_falsy
@@ -141,7 +141,7 @@ describe Jobba::Status do
       status.failed!
 
       expect(status.state).to eq Jobba::State::FAILED
-      expect(status.failed_at).to be_a Float
+      expect(status.failed_at).to be_a Time
       expect(status.failed?).to be_truthy
       expect(status.completed?).to be_truthy
     end
@@ -220,13 +220,13 @@ describe Jobba::Status do
       status.request_kill!
 
       expect(status.kill_requested?).to be_truthy
-      expect(status.kill_requested_at).to be_a(Float)
+      expect(status.kill_requested_at).to be_a(Time)
       expect(status.state).to eq prior_state
 
       status = Jobba::Status.find(status.id)
 
       expect(status.kill_requested?).to be_truthy
-      expect(status.kill_requested_at).to be_a(Float)
+      expect(status.kill_requested_at).to be_a(Time)
       expect(status.state).to eq prior_state
     end
 

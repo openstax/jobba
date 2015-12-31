@@ -24,3 +24,5 @@ end
 1. Clearing jobs should get rid of all traces.
 2. Need to track job names and important arguments.
 3. add_error
+4. enforce order progression of states (no skipping)
+5. Note in readme that Time objects expected or (floats that are seconds since epoch) or integers that are usecs since epoch or strings that are usecs since epoch
