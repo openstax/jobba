@@ -3,6 +3,8 @@ require 'json'
 module Jobba
   class Status
 
+    include Jobba::Common
+
     def self.create!
       create(state: State::UNQUEUED)
     end
@@ -67,8 +69,7 @@ module Jobba
     end
 
     def request_kill!
-      time = Time.now
-      usec_int = Utils.time_to_usec_int(time)
+      time, usec_int = now
       if redis.hsetnx(job_key, :kill_requested_at, usec_int)
         @kill_requested_at = time
       end
@@ -115,8 +116,7 @@ module Jobba
     end
 
     def enter_state!(state)
-      time = Time.now
-      usec_int = Utils.time_to_usec_int(time)
+      time, usec_int = now
       set(state: state.name, state.timestamp_name => usec_int)
       self.state = state
       self.send("#{state.timestamp_name}=",time)
@@ -209,10 +209,9 @@ module Jobba
       at.to_f / (out_of || 1).to_f
     end
 
-    # For convenience
-
-    def redis;      Jobba.redis; end
-    def self.redis; Jobba.redis; end
+    def now
+      [time = Time.now.round(6), Utils.time_to_usec_int(time)]
+    end
 
   end
 end

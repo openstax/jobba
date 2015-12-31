@@ -24,8 +24,9 @@ end
 1. Clearing jobs should get rid of all traces.
 2. Need to track job names and important arguments.
 3. add_error
-4. enforce order progression of states (no skipping)
+4. enforce order progression of states (no skipping) -- actually just note in readme that order is not enforced, clients can call what they want when, just need to be aware that timestamps won't be set or states entered automatically for them.
 5. Note in readme that Time objects expected or (floats that are seconds since epoch) or integers that are usecs since epoch or strings that are usecs since epoch
+  * even if OS supports ns time, this gem ignores nanoseconds
 6. clause and clause factory specs
 
 
