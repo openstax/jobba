@@ -146,6 +146,8 @@ my_status.save({a: 'blah', b: [1,2,3]})
 my_status.save("some string")
 ```
 
+Note that if you `save` a hash with symbol keys it will be converted to string keys.  In fact, any argument passed in to `save` will be converted to JSON and parsed back so that the `data` attribute returns the same thing regardless of if `data` is retrieved immediately after being set or after being loaded from Redis.
+
 ## Setting Job Name and Arguments
 
 If you want to be able to query for all statuses for a certain kind of job, you can set the job's name in the status:

@@ -31,7 +31,7 @@ describe Jobba::Status do
       expect(status.state).to eq Jobba::State::UNQUEUED
       expect(status.progress).to eq 0
       expect(status.errors).to be_empty
-      expect(status.data).to be_empty
+      expect(status.data).to be_nil
     end
 
     it 'returns nil when the status is not in redis' do
@@ -48,7 +48,7 @@ describe Jobba::Status do
       expect(status.state).to eq Jobba::State::UNQUEUED
       expect(status.progress).to eq 0
       expect(status.errors).to be_empty
-      expect(status.data).to be_empty
+      expect(status.data).to be_nil
       expect(status.recorded_at).to be_a(Time)
     end
 
@@ -70,6 +70,14 @@ describe Jobba::Status do
       status.save('howdy there')
       expect(status.data).to eq 'howdy there'
       expect(described_class.find(status.id).data).to eq 'howdy there'
+    end
+
+    it 'gives back same data regardless of if called after save or after reload' do
+      status = described_class.create!
+      status.save({a: 'blah'})
+      expect(status.data).to eq ({'a' => 'blah'})
+      status.reload!
+      expect(status.data).to eq ({'a' => 'blah'})
     end
   end
 

@@ -128,7 +128,8 @@ module Jobba
     # end
 
     def save(data)
-      set(data: data)
+      normalized_data = JSON.parse(data.to_json, quirks_mode: true)
+      set(data: normalized_data)
     end
 
     def delete
@@ -193,16 +194,12 @@ module Jobba
 
       @json_encoded_attrs = attrs[:raw]
 
-      if !@json_encoded_attrs.nil? && !@json_encoded_attrs.empty?
-        @json_encoded_attrs['data'] ||= "{}"
-        @json_encoded_attrs['job_args'] ||= "{}"
-      else
+      if @json_encoded_attrs.nil? || @json_encoded_attrs.empty?
         @id       = attrs[:id]       || attrs['id']       || SecureRandom.uuid
         @state    = attrs[:state]    || attrs['state']    || State::UNKNOWN
         @progress = attrs[:progress] || attrs['progress'] || 0
         @errors   = attrs[:errors]   || attrs['errors']   || []
         @data     = attrs[:data]     || attrs['data']     || {}
-        @job_args = OpenStruct.new # TODO need this and the above job args init?
 
         if attrs[:persist]
           redis.multi do
@@ -249,9 +246,7 @@ module Jobba
 
     def set_hash_in_redis(hash)
       redis_key_value_array =
-        hash.to_a
-            .collect{|kv_array| [kv_array[0], kv_array[1].to_json]}
-            .flatten(1)
+        hash.to_a.flat_map{|kv_array| [kv_array[0], kv_array[1].to_json]}
 
       Jobba.redis.hmset(job_key, *redis_key_value_array)
     end
