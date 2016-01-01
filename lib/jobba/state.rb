@@ -29,6 +29,28 @@ class Jobba::State
     UNKNOWN
   ].freeze
 
+  COMPLETED = [
+    SUCCEEDED,
+    FAILED
+  ].freeze
+
+  INCOMPLETE = [
+    UNQUEUED,
+    QUEUED,
+    WORKING,
+    KILLED
+  ].freeze
+
+  ENTERABLE = [
+    UNQUEUED,
+    QUEUED,
+    WORKING,
+    SUCCEEDED,
+    FAILED,
+    KILLED,
+    UNKNOWN
+  ].freeze
+
 end
 
 

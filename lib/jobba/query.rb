@@ -17,6 +17,10 @@ class Jobba::Query
     run(&COUNT_STATUSES)
   end
 
+  def empty?
+    count == 0
+  end
+
   # At the end of a chain of `where`s, the user will call methods that expect
   # to run on the result of the executed `where`s.  So if we don't know what
   # the method is, execute the `where`s and pass the method to its output.

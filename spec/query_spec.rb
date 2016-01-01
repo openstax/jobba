@@ -98,6 +98,26 @@ describe Jobba::Query do
     end
   end
 
+  context 'convenience queries' do
+    let!(:queued)    { make_status(state: :queued, id: :queued) }
+    let!(:working)   { make_status(state: :working, id: :working) }
+    let!(:killed)   { make_status(state: :killed, id: :killed) }
+    let!(:succeeded)   { make_status(state: :succeeded, id: :succeeded) }
+    let!(:failed)   { make_status(state: :failed, id: :failed) }
+
+    it 'returns completed statuses' do
+      expect(
+        where(state: :completed).ids
+      ).to contain_exactly(succeeded.id, failed.id)
+    end
+
+    it 'returns incomplete statuses' do
+      expect(
+        where(state: :incomplete).ids
+      ).to contain_exactly(queued.id, working.id, killed.id)
+    end
+  end
+
   context 'job_name queries' do
     let!(:status_1) { make_status(id: :status_1) }
     let!(:status_2) { make_status(id: :status_2).tap{|ss| ss.set_job_name("fluffy")} }
@@ -153,6 +173,8 @@ describe Jobba::Query do
       ).to contain_exactly(status_2.id, status_4.id)
     end
   end
+
+
 
   def where(options)
     described_class.new.where(options)

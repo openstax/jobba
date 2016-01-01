@@ -54,7 +54,7 @@ module Jobba
       eoruby
     end
 
-    State::ALL.each do |state|
+    State::ENTERABLE.each do |state|
       define_method("#{state.name}!") do
         return self if state == self.state
 
@@ -65,7 +65,9 @@ module Jobba
 
         self
       end
+    end
 
+    State::ALL.each do |state|
       define_method("#{state.name}?") do
         state == self.state
       end

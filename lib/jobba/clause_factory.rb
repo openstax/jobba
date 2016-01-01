@@ -50,6 +50,17 @@ class Jobba::ClauseFactory
   end
 
   def self.state_clause(state)
+    state = [state].flatten.collect { |ss|
+      case ss
+      when :completed
+        Jobba::State::COMPLETED.collect(&:name)
+      when :incomplete
+        Jobba::State::INCOMPLETE.collect(&:name)
+      else
+        ss
+      end
+    }.uniq
+
     validate_state_name!(state)
     Jobba::Clause.new(keys: state)
   end
@@ -57,7 +68,7 @@ class Jobba::ClauseFactory
   def self.validate_state_name!(state_name)
     [state_name].flatten.each do |name|
       if Jobba::State::ALL.none?{|state| state.name == name.to_s}
-        raise ArgumentError, "'#{name}' is not a valid timestamp."
+        raise ArgumentError, "'#{name}' is not a valid state name."
       end
     end
   end
