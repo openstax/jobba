@@ -5,6 +5,19 @@
 
 Redis-based background job status tracking.
 
+## Installation
+
+```ruby
+# Gemfile
+gem 'jobba'
+```
+
+or
+
+```
+$> gem install jobba
+```
+
 ## Configuration
 
 To configure Jobba, put the following code in your applications
@@ -19,43 +32,171 @@ Jobba.configure do |config|
 end
 ```
 
-## TODO
+## Getting status objects
 
-1. Clearing jobs should get rid of all traces.
-2. Need to track job names and important arguments.
-3. add_error
-4. enforce order progression of states (no skipping) -- actually just note in readme that order is not enforced, clients can call what they want when, just need to be aware that timestamps won't be set or states entered automatically for them.
-5. Note in readme that Time objects expected or (floats that are seconds since epoch) or integers that are usecs since epoch or strings that are usecs since epoch
-  * even if OS supports ns time, this gem ignores nanoseconds
-6. clause and clause factory specs
-7. Note in readme: "kill requested" isn't really a state but rather a condition -- while kill is requested the job is still in some other state (eg still "working"). only when it is actually killed does it change states (to "killed")
-8. Specs that test scale
-9. Sprinkle multi around
-10. Add a convenience `where(state: :complete)` and `where(state: :incomplete)`??
-
-
-
+If you know you need a new `Status`, call `create!`:
 
 ```ruby
-  # Jobba.queued # those jobs that are currently queued
-  # Jobba.queued(between: [t1, t2]) # those jobs that were queued between the times
-  #   # is this queued_at(betweent: ...)?  or queued_between(t1,t2)
-  # Jobba.queued(between: [t1, t2]).kill # kill all jobs queued in that time range
-  # Jobba.queued(after: t1).completed(before: t2)
-  # Jobba.job_named('job_name')
-  # Jobba.job_named('job_name').failed
-  # Jobba.failed.job_named('job_name')
-  # Jobba.succeeded.duration.average
-  # Jobba.succeeded(before: 1.week.ago).clear
-  # Jobba.completed
-  # Jobba.incomplete
-  # Jobba.failed.time_descending
-  # Jobba.for_arg(some_argument)  # job needs to note the status itself
-  # Jobba.all
-  # Jobba.job_names  # return all known job names
-
-  # ----------
-
-  # Jobba.where(state: :queued).where(job_name: 'blah')
-  # Jobba.where(state: [:queued, :unqueued])
+Jobba::Status.create!
 ```
+
+If you are looking for a status:
+
+```ruby
+Jobba::Status.find(id)
+```
+
+which will return `nil` if no such `Status` is found. If you always want a `Status` object back,
+call:
+
+```ruby
+Jobba::Status.find!(id)
+```
+
+The results of `find!` will always start in an `unknown` state.
+
+## Basic Use with ActiveJob
+
+```ruby
+class MyJob < ::ActiveJob::Base
+  def self.perform_later(an_arg:, another_arg:)
+    status = Jobba::Status.create!
+    args.push(status.id)
+
+    # In theory we'd mark as queued right after the call to super, but this messes
+    # up when the activejob adapter runs the job right away
+    status.queued!
+    super(*args, &block)
+
+    # return the Status ID in case it needs to be noted elsewhere
+    status.id
+  end
+
+  def perform(*args, &block)
+    # Pop the ID argument added by perform_later and get a Status
+    status = Jobba::Status.find!(args.pop)
+    status.working!
+
+    # ... do stuff ...
+
+    status.succeeded!
+  end
+end
+```
+
+## Change States
+
+* talk about timestamps & precision
+* note that order is not enforced, clients can call what they want when, just need to be aware that timestamps won't be set or states entered automatically for them.
+
+## Mark Progress
+
+## Recording Job Errors
+
+## Saving Job-specific Data
+
+## Setting Job Name and Arguments
+
+## Killing Jobs
+
+TBD: "kill requested" isn't really a state but rather a condition -- while kill is requested the job is still in some other state (eg still "working"). only when it is actually killed does it change states (to "killed")
+
+## Status Attributes
+
+## Deleting Job Statuses
+
+## Querying for Statuses
+
+Jobba has an activerecord-like query interface for finding Status objects.
+
+### Basic Query Examples
+
+**State**
+
+```ruby
+Jobba.where(state: :unqueued)
+Jobba.where(state: :queued)
+Jobba.where(state: :working)
+Jobba.where(state: :succeeded)
+Jobba.where(state: :failed)
+Jobba.where(state: :killed)
+Jobba.where(state: :unknown)
+```
+
+You can query combinations of states too:
+
+```ruby
+Jobba.where(state: [:queued, :working])
+```
+
+**State Timestamp**
+
+```ruby
+Jobba.where(recorded_at: {after: time_1})
+Jobba.where(queued_at: [time_1, nil])
+Jobba.where(started_at: {before: time_2})
+Jobba.where(started_at: [nil, time_2])
+Jobba.where(succeeded_at: {after: time_1, before: time_2})
+Jobba.where(failed_at: [time_1, time_2])
+```
+
+**Job Name**
+
+(requires having called the optional `set_job_name` method)
+
+```ruby
+Jobba.where(job_name: "MySpecialBackgroundJob")
+Jobba.where(job_name: ["MySpecialBackgroundJob", "MyOtherJob"])
+```
+
+**Job Arguments**
+
+(requires having called the optional `add_job_arg` method)
+
+```ruby
+Jobba.where(job_arg: "gid://app/MyModel/42")
+Jobba.where(job_arg: "gid://app/Person/86")
+```
+
+### Query Chaining
+
+Queries can be chained! (intersects the results of each `where` clause)
+
+```ruby
+Jobba.where(state: :queued).where(recorded_at: {after: some_time})
+Jobba.where(job_name: "MyTroublesomeJob").where(state: :failed)
+```
+
+### Operations on Queries
+
+When you have a query you can run the following methods on it:
+
+* ...
+* ...
+
+You can also call two special methods directly on `Jobba`:
+
+```ruby
+Jobba.all     # returns all statuses
+Jobba.count   # returns count of all statuses
+```
+
+## Notes
+
+### Times
+
+Note in readme that Time objects expected or (floats that are seconds since epoch) or integers that are usecs since epoch or strings that are usecs since epoch
+  * even if OS supports ns time, this gem ignores nanoseconds
+
+## TODO
+
+1. Provide job min, max, and average durations.
+2. Implement `add_error`.
+8. Specs that test scale.
+9. Make sure we're calling `multi` or `pipelined` everywhere we can.
+10. Add convenience `where(state: :complete)` and `where(state: :incomplete)` queries.
+
+
+
+
+
