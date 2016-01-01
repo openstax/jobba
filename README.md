@@ -1,5 +1,6 @@
 # jobba
 
+[![Gem Version](https://badge.fury.io/rb/jobba.svg)](http://badge.fury.io/rb/jobba)
 [![Build Status](https://travis-ci.org/openstax/jobba.svg?branch=master)](https://travis-ci.org/openstax/jobba)
 [![Code Climate](https://codeclimate.com/github/openstax/jobba/badges/gpa.svg)](https://codeclimate.com/github/openstax/jobba)
 
