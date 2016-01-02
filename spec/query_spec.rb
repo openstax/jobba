@@ -6,7 +6,7 @@ describe Jobba::Query do
     Jobba::Status.create!
     queued_1 = Jobba::Status.create!.queued!
     queued_2 = Jobba::Status.create!.queued!
-    Jobba::Status.create!.working!
+    Jobba::Status.create!.started!
 
     expect(where(state: :queued).ids).to contain_exactly(queued_1.id, queued_2.id)
   end
@@ -17,7 +17,7 @@ describe Jobba::Query do
 
   it 'can have `all` run on a chain' do
     queued = Jobba::Status.create!.queued!
-    Jobba::Status.create!.working!
+    Jobba::Status.create!.started!
 
     expect(where(state: :queued).all.collect(&:id)).to contain_exactly(queued.id)
   end
@@ -25,33 +25,33 @@ describe Jobba::Query do
   it 'returns all statuses when not run on a chain' do
     unqueued = make_status(state: :unqueued, id: :unqueued)
     queued   = make_status(state: :queued, id: :queued_1)
-    working  = make_status(state: :working, id: :working_1)
+    started  = make_status(state: :started, id: :started_1)
 
     expect(
       described_class.new.all.collect(&:id)
-    ).to contain_exactly(unqueued.id, queued.id, working.id)
+    ).to contain_exactly(unqueued.id, queued.id, started.id)
   end
 
   it 'freaks out if a timestamp name is invalid' do
-    expect{where(working_at: [nil, nil])}.to raise_error(ArgumentError)
+    expect{where(began_at: [nil, nil])}.to raise_error(ArgumentError)
   end
 
   it 'can get statuses from multiple states' do
     unqueued = make_status(state: :unqueued, id: :unqueued)
     queued   = make_status(state: :queued, id: :queued_1)
-    working  = make_status(state: :working, id: :working_1)
+    started  = make_status(state: :started, id: :started_1)
 
     expect(
-      where(state: [:unqueued, :working]).ids
-    ).to contain_exactly(unqueued.id, working.id)
+      where(state: [:unqueued, :started]).ids
+    ).to contain_exactly(unqueued.id, started.id)
   end
 
   it 'counts `where` results without bringing statuses back from redis' do
     queued   = make_status(state: :queued, id: :queued_1)
-    working  = make_status(state: :working, id: :working_1)
+    started  = make_status(state: :started, id: :started_1)
 
     expect(Jobba.redis).not_to receive(:mget)
-    expect(where(state: :working).count).to eq 1
+    expect(where(state: :started).count).to eq 1
   end
 
   # describe 'timestamp queries' do
@@ -61,12 +61,12 @@ describe Jobba::Query do
   context 'query scenario 1' do
     let!(:unqueued)    { make_status(state: :unqueued, id: :unqueued) }
     let!(:queued_1)    { make_status(state: :queued, id: :queued_1) }
-    let!(:working_1)   { make_status(state: :working, id: :working_1) }
+    let!(:started_1)   { make_status(state: :started, id: :started_1) }
     let!(:time_1)      { Jobba::Time.now }
     let!(:queued_2)    { make_status(state: :queued, id: :queued_2) }
-    let!(:working_2)   { make_status(state: :working, id: :working_2) }
+    let!(:started_2)   { make_status(state: :started, id: :started_2) }
     let!(:time_2)      { Jobba::Time.now }
-    let!(:working_3)   { make_status(state: :working, id: :working_3) }
+    let!(:started_3)   { make_status(state: :started, id: :started_3) }
 
     it 'can get statuses for a state and a timestamp' do
       expect(where(state: :queued).where(recorded_at: [nil, time_1]).ids).to eq [queued_1.id]
@@ -79,18 +79,18 @@ describe Jobba::Query do
     it 'can get statuses for multiple timestamps' do
       expect(
         where(queued_at: [time_1, nil]).where(started_at: [nil, time_2]).ids
-      ).to eq [working_2.id]
+      ).to eq [started_2.id]
 
       expect(
         where(queued_at: [time_1, nil]).where(started_at: [time_2, nil]).ids
-      ).to eq [working_3.id]
+      ).to eq [started_3.id]
     end
 
     it 'does not leave temporary keys around' do
       [
         -> { where(state: :queued) },
         -> { where(state: :queued).where(recorded_at: [nil, time_1]) },
-        -> { where(state: :queued).where(recorded_at: [nil, time_1]).where(state: :working) }
+        -> { where(state: :queued).where(recorded_at: [nil, time_1]).where(state: :started) }
       ]
       .each do |query|
         expect(&query).not_to change{Jobba.redis.keys.count}
@@ -100,7 +100,7 @@ describe Jobba::Query do
 
   context 'convenience queries' do
     let!(:queued)    { make_status(state: :queued, id: :queued) }
-    let!(:working)   { make_status(state: :working, id: :working) }
+    let!(:started)   { make_status(state: :started, id: :started) }
     let!(:killed)   { make_status(state: :killed, id: :killed) }
     let!(:succeeded)   { make_status(state: :succeeded, id: :succeeded) }
     let!(:failed)   { make_status(state: :failed, id: :failed) }
@@ -114,7 +114,7 @@ describe Jobba::Query do
     it 'returns incomplete statuses' do
       expect(
         where(state: :incomplete).ids
-      ).to contain_exactly(queued.id, working.id, killed.id)
+      ).to contain_exactly(queued.id, started.id, killed.id)
     end
   end
 

@@ -40,8 +40,8 @@ describe Jobba::ClauseFactory do
     end
 
     it 'works with two states' do
-      clause = described_class.new_clause('state', ['queued', 'working'])
-      expect(clause.keys).to eq ['queued', 'working']
+      clause = described_class.new_clause('state', ['queued', 'started'])
+      expect(clause.keys).to eq ['queued', 'started']
     end
 
     it 'does not like bad state names' do

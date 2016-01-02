@@ -76,7 +76,7 @@ class MyJob < ::ActiveJob::Base
   def perform(*args, &block)
     # Pop the ID argument added by perform_later and get a Status
     status = Jobba::Status.find!(args.pop)
-    status.working!
+    status.started!
 
     # ... do stuff ...
 
@@ -91,7 +91,7 @@ One of the main functions of Jobba is to let a job advance its status through a 
 
 * `unqueued`
 * `queued`
-* `working`
+* `started`
 * `succeeded`
 * `failed`
 * `killed`
@@ -100,7 +100,7 @@ One of the main functions of Jobba is to let a job advance its status through a 
 Put a `Status` into one of these states by calling `that_state!`, e.g.
 
 ```ruby
-my_state.working!
+my_state.started!
 ```
 
 The `unqueued` state is entered when a `Status` is first created.  The `unknown` state is entered when `find!(id)` is called but the `id` is not known.  You can re-enter these states with the `!` methods, but note that the `recorded_at` timestamp will not be updated.
@@ -111,7 +111,7 @@ The **first time a state is entered**, a timestamp is recorded for that state.  
 |-------|-----------|
 |unqueued  | recorded_at |
 |queued    | queued_at   |
-|working   | started_at  |
+|started   | started_at  |
 |succeeded | succeeded_at |
 |failed    | failed_at    |
 |killed    | killed_at    |
@@ -182,7 +182,7 @@ my_status.kill_requested?
 
 and if that returns `true`, it can attempt to gracefully terminate itself.
 
-Note that when a kill is requested, the job will continue to be in some other state (e.g. `working`) until it is in fact killed, at which point the job should call:
+Note that when a kill is requested, the job will continue to be in some other state (e.g. `started`) until it is in fact killed, at which point the job should call:
 
 ```ruby
 my_status.killed!
@@ -217,7 +217,7 @@ A `Status` object also methods to check if it is in certain states:
 * `reload!`
 * `unqueued?`
 * `queued?`
-* `working?`
+* `started?`
 * `succeeded?`
 * `failed?`
 * `killed?`
@@ -250,7 +250,7 @@ Jobba has an activerecord-like query interface for finding Status objects.
 ```ruby
 Jobba.where(state: :unqueued)
 Jobba.where(state: :queued)
-Jobba.where(state: :working)
+Jobba.where(state: :started)
 Jobba.where(state: :succeeded)
 Jobba.where(state: :failed)
 Jobba.where(state: :killed)
@@ -261,13 +261,13 @@ Two convenience "state" queries have been added:
 
 ```ruby
 Jobba.where(state: :completed)   # includes succeeded, failed
-Jobba.where(state: :incomplete)  # includes unqueued, queued, working, killed
+Jobba.where(state: :incomplete)  # includes unqueued, queued, started, killed
 ```
 
 You can query combinations of states too:
 
 ```ruby
-Jobba.where(state: [:queued, :working])
+Jobba.where(state: [:queued, :started])
 ```
 
 **State Timestamp**

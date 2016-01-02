@@ -112,12 +112,12 @@ describe Jobba::Status do
       expect(status.incomplete?).to be_truthy
       expect(status.completed?).to be_falsy
 
-      status.working!
+      status.started!
 
-      expect(status.state).to eq Jobba::State::WORKING
+      expect(status.state).to eq Jobba::State::STARTED
       expect(status.started_at).to be_a Time
       expect(status.queued?).to be_falsy
-      expect(status.working?).to be_truthy
+      expect(status.started?).to be_truthy
       expect(status.incomplete?).to be_truthy
       expect(status.completed?).to be_falsy
 
@@ -125,7 +125,7 @@ describe Jobba::Status do
 
       expect(status.state).to eq Jobba::State::SUCCEEDED
       expect(status.succeeded_at).to be_a Time
-      expect(status.working?).to be_falsy
+      expect(status.started?).to be_falsy
       expect(status.succeeded?).to be_truthy
       expect(status.incomplete?).to be_falsy
       expect(status.completed?).to be_truthy
@@ -255,7 +255,7 @@ describe Jobba::Status do
       status = described_class.create!
       status.set_job_name("do_stuff")
       status.add_job_arg(:foo, "gid://app/MyModel/42")
-      status.queued!.working!
+      status.queued!.started!
       status.request_kill!
       status.delete!
       expect(Jobba.redis.keys("*").count).to eq 0

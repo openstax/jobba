@@ -21,12 +21,12 @@ module Helpers
     # Whether or not all states are used is up to the code using this library;
     # for these specs, we assume that states are traversed in order.
     case state
-    when :working
-      status.queued!.working!
+    when :started
+      status.queued!.started!
     when :succeeded
-      status.queued!.working!.succeeded!
+      status.queued!.started!.succeeded!
     when :failed
-      status.queued!.working!.failed!
+      status.queued!.started!.failed!
     else
       status.send("#{state}!") unless state.nil?
     end

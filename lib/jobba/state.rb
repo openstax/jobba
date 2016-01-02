@@ -13,7 +13,7 @@ class Jobba::State
 
   UNQUEUED        = new('unqueued', 'recorded_at')
   QUEUED          = new('queued', 'queued_at')
-  WORKING         = new('working', 'started_at')
+  STARTED         = new('started', 'started_at')
   SUCCEEDED       = new('succeeded', 'succeeded_at')
   FAILED          = new('failed', 'failed_at')
   KILLED          = new('killed', 'killed_at')
@@ -22,7 +22,7 @@ class Jobba::State
   ALL = [
     UNQUEUED,
     QUEUED,
-    WORKING,
+    STARTED,
     SUCCEEDED,
     FAILED,
     KILLED,
@@ -37,14 +37,14 @@ class Jobba::State
   INCOMPLETE = [
     UNQUEUED,
     QUEUED,
-    WORKING,
+    STARTED,
     KILLED
   ].freeze
 
   ENTERABLE = [
     UNQUEUED,
     QUEUED,
-    WORKING,
+    STARTED,
     SUCCEEDED,
     FAILED,
     KILLED,

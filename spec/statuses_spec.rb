@@ -26,9 +26,9 @@ describe Jobba::Statuses do
   context 'standard array methods' do
     let!(:queued)    { make_status(state: :queued, id: :queued) }
     let!(:time)      { Jobba::Time.now }
-    let!(:working)   { make_status(state: :working, id: :working) }
+    let!(:started)   { make_status(state: :started, id: :started) }
 
-    let!(:statuses) { described_class.new(queued.id, working.id)}
+    let!(:statuses) { described_class.new(queued.id, started.id)}
 
     it 'has `first`' do
       expect(statuses.first).to_not be_nil
@@ -51,12 +51,12 @@ describe Jobba::Statuses do
     end
 
     it 'has `map` and `collect`' do
-      expect(statuses.map(&:id)).to contain_exactly("queued", "working")
-      expect(statuses.collect(&:id)).to contain_exactly("queued", "working")
+      expect(statuses.map(&:id)).to contain_exactly("queued", "started")
+      expect(statuses.collect(&:id)).to contain_exactly("queued", "started")
     end
 
     it 'has `each`' do
-      expect(statuses.each{|ss| %w(queued working).include?(ss.id)})
+      expect(statuses.each{|ss| %w(queued started).include?(ss.id)})
     end
 
     it 'has `select`' do
@@ -86,13 +86,13 @@ describe Jobba::Statuses do
 
   it 'can bulk request kill' do
     queued =  make_status(state: :queued, id: :queued)
-    working = make_status(state: :working, id: :working)
+    started = make_status(state: :started, id: :started)
 
-    statuses = described_class.new(queued.id, working.id)
+    statuses = described_class.new(queued.id, started.id)
 
     statuses.request_kill!
     expect(queued.reload!.kill_requested?).to be_truthy
-    expect(working.reload!.kill_requested?).to be_truthy
+    expect(started.reload!.kill_requested?).to be_truthy
   end
 
 end
