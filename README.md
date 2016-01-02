@@ -54,7 +54,7 @@ call:
 Jobba::Status.find!(id)
 ```
 
-The results of `find!` will always start in an `unknown` state.
+The result of `find!` will start in an `unknown` state if the ID doesn't exist in Redis.
 
 ## Basic Use with ActiveJob
 
@@ -162,7 +162,7 @@ If you want to be able to query for all statuses that take a certain argument as
 my_status.add_job_arg(arg_name, arg)
 ```
 
-where `arg_name` is what the argument is called in your job (e.g. `"input_1"`) and `arg` is a way to identify the argument (e.g. `"gid://app/Person/72").
+where `arg_name` is what the argument is called in your job (e.g. `"input_1"`) and `arg` is a way to identify the argument (e.g. `"gid://app/Person/72"`).
 
 You probably will only want to track complex arguments, e.g. models in your application.  E.g. you could have a `Book` model and a `PublishBook` background job and you may want to see all of the `PublishBook` jobs that have status for the `Book` with ID `53`.
 
@@ -228,11 +228,11 @@ And two conveience methods for checking groups of states:
 * `completed?`
 * `incomplete?`
 
-You can also call `reload!` on a `Status` to have it reset its state to what is stored in redis.
+You can also call `reload!` on a `Status` to have it reset its state to what is stored in Redis.
 
 ## Deleting Job Statuses
 
-Once jobs are completed or otherwise no longer interesting, it'd be nice to clear them out of redis.  You can do this with:
+Once jobs are completed or otherwise no longer interesting, it'd be nice to clear them out of Redis.  You can do this with:
 
 ```ruby
 my_status.delete    # freaks out if `my_status` isn't complete
@@ -328,7 +328,7 @@ When you have a query you can run the following methods on it.  These act like w
 * `empty?`
 * `count`
 
-`empty?` and `count` are performed in redis without bringing back all query results to Ruby.
+`empty?` and `count` are performed in Redis without bringing back all query results to Ruby.
 
 You can also call two special methods directly on `Jobba`:
 
@@ -363,7 +363,7 @@ Note that, in operations having to do with time, this gem ignores anything beyon
 
 ### Efficiency
 
-Jobba strives to do all of its operations as efficiently as possible using built-in redis operations.  If you find a place where the efficiency can be improved, please submit an issue or a pull request.
+Jobba strives to do all of its operations as efficiently as possible using built-in Redis operations.  If you find a place where the efficiency can be improved, please submit an issue or a pull request.
 
 ## TODO
 
