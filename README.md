@@ -19,6 +19,8 @@ or
 $> gem install jobba
 ```
 
+Semantic versioning will begin with version `2.0.0`.
+
 ## Configuration
 
 To configure Jobba, put the following code in your applications
