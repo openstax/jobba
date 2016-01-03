@@ -247,7 +247,7 @@ Jobba has an activerecord-like query interface for finding Status objects.
 
 ### Basic Query Examples
 
-**Getting All Statuses***
+**Getting All Statuses**
 
 ```ruby
 Jobba.all
@@ -311,7 +311,7 @@ Jobba.where(job_arg: "gid://app/MyModel/42")
 Jobba.where(job_arg: "gid://app/Person/86")
 ```
 
-** Status IDs **
+**Status IDs**
 
 ```ruby
 Jobba.where(id: nil)
@@ -341,7 +341,7 @@ Jobba.where(...).run
 
 When you call `run` on a query, you'll get back a `Statuses` object, which is simply a collection of `Status` objects with a few convenience methods and bulk operations.
 
-** Bulk Methods on Statuses **
+**Bulk Methods on Statuses**
 
 * `delete_all`
 * `delete_all!`
@@ -357,7 +357,7 @@ my_statuses.multi do |status, redis|
 end
 ```
 
-** Array-like Methods on Statuses **
+**Array-like Methods on Statuses**
 
 * `any?`
 * `none?`
