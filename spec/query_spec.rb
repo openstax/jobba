@@ -174,7 +174,35 @@ describe Jobba::Query do
     end
   end
 
+  context 'id queries' do
+    let!(:status_1) { make_status(id: :status_1) }
+    let!(:status_2) { make_status(id: :status_2) }
+    let!(:status_3) { make_status(id: :status_3) }
+    let!(:status_4) { make_status(id: :status_4, state: :started) }
 
+    it 'queries no IDs' do
+      expect(where(id: []).ids).to be_empty
+      expect(where(id: []).ids).to be_empty
+    end
+
+    it 'queries one ID' do
+      expect(
+        where(id: :status_1).ids
+      ).to eq [status_1.id]
+    end
+
+    it 'queries multiple IDs' do
+      expect(
+        where(id: [:status_1, :status_2]).ids
+      ).to contain_exactly(status_1.id, status_2.id)
+    end
+
+    it 'chains ID queries' do
+      expect(
+        where(id: [:status_3, :status_4]).where(state: :started).ids
+      ).to contain_exactly(status_4.id)
+    end
+  end
 
   def where(options)
     described_class.new.where(options)

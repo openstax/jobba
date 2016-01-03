@@ -25,7 +25,7 @@ class Jobba::Clause
   end
 
   def to_new_set
-    new_key = "temp:#{SecureRandom.hex(10)}"
+    new_key = Jobba::Utils.temp_key
 
     # Make a copy of the data into new_key then filter values if indicated
     # (always making a copy gets normal sets into a sorted set key OR if

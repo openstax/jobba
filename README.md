@@ -19,7 +19,7 @@ or
 $> gem install jobba
 ```
 
-Semantic versioning will begin with version `2.0.0`.
+Version 1.x.x follows the scheme, 1.major_change.minor_change.  Normal semantic versioning (major/minor/patch) will begin with version `2.0.0`.
 
 ## Configuration
 
@@ -305,6 +305,15 @@ Jobba.where(job_arg: "gid://app/MyModel/42")
 Jobba.where(job_arg: "gid://app/Person/86")
 ```
 
+** Status IDs **
+
+```ruby
+Jobba.where(id: nil)
+Jobba.where(id: [])
+Jobba.where(id: "some_id")
+Jobba.where(id: ["an_id", "another_id"])
+```
+
 ### Query Chaining
 
 Queries can be chained! (intersects the results of each `where` clause)
@@ -316,7 +325,9 @@ Jobba.where(job_name: "MyTroublesomeJob").where(state: :failed)
 
 ### Operations on Queries
 
-When you have a query you can run the following methods on it.  These act like what you'd expect for a Ruby array.
+When you have a query you can run the following methods on it.  The most common method to call is `all`, which returns a `Statuses` object (see below for more on this).
+
+Many of the other operations act like what you'd expect for a Ruby array:
 
 * `first`
 * `any?`

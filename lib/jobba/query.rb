@@ -1,4 +1,5 @@
 require 'jobba/clause'
+require 'jobba/id_clause'
 require 'jobba/clause_factory'
 
 class Jobba::Query

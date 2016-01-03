@@ -22,4 +22,8 @@ module Jobba::Utils
     Jobba::Time.at(int / 1000000, int % 1000000)
   end
 
+  def self.temp_key
+    "temp:#{SecureRandom.hex(10)}"
+  end
+
 end
