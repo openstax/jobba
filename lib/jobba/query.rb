@@ -95,7 +95,7 @@ class Jobba::Query
       load_default_clause if clauses.empty?
       working_set = nil
 
-      clauses.each_with_index do |clause, ii|
+      clauses.each do |clause|
         clause_set = clause.to_new_set
 
         if working_set.nil?

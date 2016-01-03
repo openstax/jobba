@@ -24,8 +24,6 @@ class Jobba::ClauseFactory
     end
   end
 
-  protected
-
   def self.timestamp_clause(timestamp_name, options)
     validate_timestamp_name!(timestamp_name)
 
