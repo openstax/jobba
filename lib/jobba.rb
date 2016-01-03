@@ -14,16 +14,12 @@ require "jobba/query"
 
 module Jobba
 
-  def self.where(*args)
-    Query.new.where(*args)
-  end
-
   def self.all
-    Query.new.all
+    Query.new
   end
 
-  def self.count
-    Query.new.count
+  def self.where(*args)
+    all.where(*args)
   end
 
   def self.configure

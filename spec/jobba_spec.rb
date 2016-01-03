@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe Jobba do
 
-  it 'has working `where`, `all`, and `count` methods' do
+  it 'has working `where` and `all` methods' do
     # smoke tests since just delegates to Query
 
     unqueued = Jobba::Status.create!
@@ -12,7 +12,6 @@ describe Jobba do
 
     expect(Jobba.where(state: :queued).ids).to contain_exactly(queued_1.id, queued_2.id)
     expect(Jobba.all.collect(&:id)).to contain_exactly(unqueued.id, queued_1.id, queued_2.id, started.id)
-    expect(Jobba.count).to eq 4
   end
 
 end

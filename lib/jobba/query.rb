@@ -15,7 +15,7 @@ class Jobba::Query
   end
 
   def count
-    run(&COUNT_STATUSES)
+    run_with_block(&COUNT_STATUSES)
   end
 
   def empty?
@@ -26,9 +26,9 @@ class Jobba::Query
   # to run on the result of the executed `where`s.  So if we don't know what
   # the method is, execute the `where`s and pass the method to its output.
 
-  def method_missing(method_name, *args)
+  def method_missing(method_name, *args, &block)
     if Jobba::Statuses.instance_methods.include?(method_name)
-      run(&GET_STATUSES).send(method_name, *args)
+      run.send(method_name, *args, &block)
     else
       super
     end
@@ -36,6 +36,10 @@ class Jobba::Query
 
   def respond_to?(method_name)
     Jobba::Statuses.instance_methods.include?(method_name) || super
+  end
+
+  def run
+    run_with_block(&GET_STATUSES)
   end
 
   protected
@@ -55,9 +59,16 @@ class Jobba::Query
     Jobba.redis.zcard(working_set)
   }
 
-  def run(&working_set_block)
+  def run_with_block(&working_set_block)
 
-    # TODO PUT IN MULTI BLOCKS WHERE WE CAN!
+    # TODO I think this code can be rewritten to send all calls to redis
+    # in one or maybe two `multi` blocks.  A complication comes in
+    # how the GET_STATUSES block uses the result of a redis call in
+    # its instantiation of a Statuses object.  That would have to
+    # be split apart somehow -- like maybe this method can take two blocks
+    # -- one that is run inside the multi block, and another that runs
+    # outside of the multi block taking as input the output of the first
+    # block.
 
     load_default_clause if clauses.empty?
     working_set = nil

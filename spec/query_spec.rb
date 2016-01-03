@@ -15,11 +15,11 @@ describe Jobba::Query do
     expect(where(state: :queued).ids).to be_empty
   end
 
-  it 'can have `all` run on a chain' do
+  it 'can have `run` run on a chain' do
     queued = Jobba::Status.create!.queued!
     Jobba::Status.create!.started!
 
-    expect(where(state: :queued).all.collect(&:id)).to contain_exactly(queued.id)
+    expect(where(state: :queued).run.ids).to contain_exactly(queued.id)
   end
 
   it 'returns all statuses when not run on a chain' do
@@ -28,7 +28,7 @@ describe Jobba::Query do
     started  = make_status(state: :started, id: :started_1)
 
     expect(
-      described_class.new.all.collect(&:id)
+      described_class.new.run.ids
     ).to contain_exactly(unqueued.id, queued.id, started.id)
   end
 

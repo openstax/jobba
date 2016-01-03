@@ -247,6 +247,12 @@ Jobba has an activerecord-like query interface for finding Status objects.
 
 ### Basic Query Examples
 
+**Getting All Statuses***
+
+```ruby
+Jobba.all
+```
+
 **State**
 
 ```ruby
@@ -323,49 +329,79 @@ Jobba.where(state: :queued).where(recorded_at: {after: some_time})
 Jobba.where(job_name: "MyTroublesomeJob").where(state: :failed)
 ```
 
-### Operations on Queries
+### Sort Order
 
-When you have a query you can run the following methods on it.  The most common method to call is `all`, which returns a `Statuses` object (see below for more on this).
+Currently, results from queries are not guaranteed to be in any order.  You can sort them yourself using normal Ruby calls.
 
-Many of the other operations act like what you'd expect for a Ruby array:
-
-* `first`
-* `any?`
-* `none?`
-* `all?`
-* `each`
-* `each_with_index`
-* `map`
-* `collect`
-* `select`
-* `empty?`
-* `count`
-
-`empty?` and `count` are performed in Redis without bringing back all query results to Ruby.
-
-You can also call two special methods directly on `Jobba`:
+### Running a Query to get Statuses
 
 ```ruby
-Jobba.all     # returns all statuses
-Jobba.count   # returns count of all statuses
+Jobba.where(...).run
 ```
 
-## Statuses Object
+When you call `run` on a query, you'll get back a `Statuses` object, which is simply a collection of `Status` objects with a few convenience methods and bulk operations.
 
-Calling `all` on a query returns a `Statuses` object, which is just a collection of `Status` objects.  It has a few methods for doing bulk operations on all `Status` objects in it.
+** Bulk Methods on Statuses **
 
-* `delete`
-* `delete!`
-* `request_kill!`
+* `delete_all`
+* `delete_all!`
+* `request_kill_all!`
 
 These work like describe above for individual `Status` objects.
 
-There is also a not-very-tested `multi` operation that takes a block and executes the block inside a Redis `multi` call.
+There is also a not-very-tested `multi` operation that takes a block and executes the block inside a Redis `multi` call.  Do not use it unless you really know what you are doing.
 
 ```ruby
 my_statuses.multi do |status, redis|
   # do stuff on `status` using the `redis` connection
 end
+```
+
+** Array-like Methods on Statuses **
+
+* `any?`
+* `none?`
+* `all?`
+* `map`
+* `collect`
+* `empty?`
+* `count`
+* `select!`
+* `reject!`
+
+If you want to get an array of `Status` objects from a `Statuses` object, just call
+
+```ruby
+a_statuses_object.to_a
+```
+
+`select!` and `reject!`, as you would expect, operate in place and also return `self`.
+
+### Passthrough Methods on Queries
+
+As a convenience, if you call a method on `Query` that isn't defined there but is defined on `Statuses`, a new `Statuses` object will be created for you and your method called on it.
+
+```ruby
+Jobba.where(state: :queued).collect(&:queued_at)
+```
+
+is the same as
+
+```ruby
+Jobba.where(state: :queued).run.collect(&:queued_at)
+```
+
+### Query Counts
+
+Notably, both `Query` and `Statuses` define the `count` and `empty?` methods.  Which ones you use affects if the counting is done in Redis or in Ruby:
+
+```ruby
+Jobba.where(...).count       # These count in Redis
+Jobba.where(...).empty?
+Jobba.all.count
+
+Jobba.where(...).run.count   # These pull data back to Ruby and count in Ruby
+Jobba.where(...).run.empty?
 ```
 
 ## Notes
@@ -385,7 +421,6 @@ Jobba strives to do all of its operations as efficiently as possible using built
 8. Specs that test scale.
 9. Make sure we're calling `multi` or `pipelined` everywhere we can.
 11. Make sure we're consistent on completed/complete incompleted/incomplete.
-12. Should more `Statuses` operations return `Statuses`, e.g. `each`, so that they can be chained?
 
 
 

@@ -5,15 +5,23 @@ class Jobba::Statuses
 
   attr_reader :ids
 
-  def all
-    load
+  def to_a
+    load.dup
   end
 
-  def_delegator :@ids, :empty?
-  def_delegators :all, :first, :any?, :none?, :all?, :each, :each_with_index,
-                       :map, :collect, :select, :count
+  def_delegators :@ids, :empty?
 
-  def delete
+  def_delegators :load, :any?, :none?, :all?, :count, :map, :collect
+
+  def select!(&block)
+    modify!(:select!, &block)
+  end
+
+  def reject!(&block)
+    modify!(:reject!, &block)
+  end
+
+  def delete_all
     if any?(&:incomplete?)
       raise(Jobba::NotCompletedError,
             "This status cannot be deleted because it isn't complete.  Use " \
@@ -23,7 +31,7 @@ class Jobba::Statuses
     delete!
   end
 
-  def delete!
+  def delete_all!
     load
     redis.multi do
       @cache.each(&:delete!)
@@ -32,7 +40,7 @@ class Jobba::Statuses
     @ids = []
   end
 
-  def request_kill!
+  def request_kill_all!
     load
     redis.multi do
       @cache.each(&:request_kill!)
@@ -61,8 +69,21 @@ class Jobba::Statuses
       end
     end
 
+    raw_statuses.reject!(&:empty?)
+
     raw_statuses.collect do |raw_status|
       Jobba::Status.new(raw: raw_status)
+    end
+  end
+
+  def modify!(method, &block)
+    raise Jobba::NotImplemented unless block_given?
+    load
+    if @cache.send(method, &block).nil?
+      nil
+    else
+      @ids = @cache.collect(&:id)
+      self
     end
   end
 
