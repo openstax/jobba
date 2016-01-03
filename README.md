@@ -237,7 +237,7 @@ You can also call `reload!` on a `Status` to have it reset its state to what is 
 Once jobs are completed or otherwise no longer interesting, it'd be nice to clear them out of Redis.  You can do this with:
 
 ```ruby
-my_status.delete    # freaks out if `my_status` isn't complete
+my_status.delete    # freaks out if `my_status` isn't completed
 my_status.delete!   # always deletes
 ```
 
@@ -419,8 +419,6 @@ Jobba strives to do all of its operations as efficiently as possible using built
 1. Provide job min, max, and average durations.
 2. Implement `add_error`.
 8. Specs that test scale.
-9. Make sure we're calling `multi` or `pipelined` everywhere we can.
-11. Make sure we're consistent on completed/complete incompleted/incomplete.
 
 
 
