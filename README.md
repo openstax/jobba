@@ -414,6 +414,16 @@ Note that, in operations having to do with time, this gem ignores anything beyon
 
 Jobba strives to do all of its operations as efficiently as possible using built-in Redis operations.  If you find a place where the efficiency can be improved, please submit an issue or a pull request.
 
+## Development
+
+By default, this gem uses `fakeredis` instead of real Redis.  This is great most of the time, but occassionally `fakeredis` doesn't work exactly like real Redis.  If you want to use real Redis, just set the `USE_REAL_REDIS` environment variable to `true`, e.g.
+
+```
+$> USE_REAL_REDIS=true rspec
+```
+
+Travis runs the specs with both `fakeredis` and real Redis.
+
 ## TODO
 
 1. Provide job min, max, and average durations.
