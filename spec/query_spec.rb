@@ -204,6 +204,38 @@ describe Jobba::Query do
     end
   end
 
+  context 'restarts' do
+    # let!(:unqueued)    { make_status(state: :unqueued, id: :unqueued) }
+    # let!(:queued)    { make_status(state: :queued, id: :queued) }
+    # let!(:started)   { make_status(state: :started, id: :started) }
+    # let!(:succeeded)   { make_status(state: :succeeded, id: :succeeded) }
+    # let!(:failed)   { make_status(state: :failed, id: :failed) }
+    # let!(:killed)   { make_status(state: :killed, id: :killed) }
+    # let!(:unknown)   { make_status(state: :unknown, id: :unknown) }
+
+    it 'unqueued then started has right timestamps' do
+      status = make_status(state: :unqueued).started!
+      expect(where(recorded_at: [nil, nil]).ids).to eq [status.id]
+      expect(where(started_at: [nil, nil]).ids).to eq [status.id]
+      expect(where(state: :unqueued).ids).to be_empty
+      expect(where(state: :started).ids).to eq [status.id]
+    end
+
+    it 'started then started has right query fields' do
+      status = make_status(state: :started).started!
+      expect(where(recorded_at: [nil, nil]).ids).to eq [status.id]
+      expect(where(state: :unqueued).ids).to be_empty
+      expect(where(state: :started).ids).to eq [status.id]
+    end
+
+    it 'succeeded then started has the right query fields' do
+
+    end
+
+
+
+  end
+
   def where(options)
     described_class.new.where(options)
   end

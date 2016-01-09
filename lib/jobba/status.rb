@@ -28,13 +28,13 @@ module Jobba
     end
 
     def self.local_attrs
-      %w(id state progress errors data kill_requested_at job_name job_args) +
+      %w(id state progress errors data kill_requested_at job_name job_args attempt) +
       State::ALL.collect(&:timestamp_name)
     end
 
     def reload!
       @json_encoded_attrs = self.class.raw_redis_hash(id)
-      self.class.local_attrs.each{|aa| send("#{aa}=",nil)}
+      clear_attrs
       self
     end
 
@@ -56,11 +56,12 @@ module Jobba
 
     State::ENTERABLE.each do |state|
       define_method("#{state.name}!") do
-        return self if state == self.state
-
         redis.multi do
-          leave_current_state!
-          enter_state!(state)
+          if state == State::STARTED && did_start?
+            restart!
+          elsif state != self.state
+            move_to_state!(state)
+          end
         end
 
         self
@@ -79,6 +80,10 @@ module Jobba
 
     def incomplete?
       !completed?
+    end
+
+    def did_start?
+      !self.started_at.nil?
     end
 
     def request_kill!
@@ -118,6 +123,10 @@ module Jobba
       end
     end
 
+    # def add_error(error:)
+    # maybe errors should be free form -- pass in whatever keys and values you want (client specific)
+    # we could supplement an error with a timestamp
+
     # def add_error(error, options = { })
     #   options = { is_fatal: false }.merge(options)
     #   @errors << { is_fatal: options[:is_fatal],
@@ -141,21 +150,12 @@ module Jobba
     end
 
     def delete!
-      redis.multi do
-        redis.del(job_key)
+      delete_in_redis!
+      delete_locally!
+    end
 
-        State::ALL.each do |state|
-          redis.srem(state.name, id)
-          redis.zrem(state.timestamp_name, id)
-        end
-
-        redis.srem(job_name_key, id)
-
-        redis.del(job_args_key)
-        job_args.marshal_dump.values.each do |arg|
-          redis.srem(job_arg_key(arg), id)
-        end
-      end
+    def prior_attempts
+      [*0..attempt-1].collect{|ii| self.class.find!("#{id}:#{ii}")}
     end
 
     protected
@@ -176,17 +176,37 @@ module Jobba
       main_hash
     end
 
-    def leave_current_state!
-      redis.srem(state.name, id)
+    def restart!
+      # Identify the values we want the restarted status to have, archive
+      # the attempt (clears out redis and local for this status), then
+      # set the restarted values
+
+      restarted_values = {
+        id: id,
+        attempt: attempt+1,
+        recorded_at: recorded_at,
+        queued_at: queued_at,
+        progress: 0,
+        errors: [],
+        job_name: job_name,
+        job_args: job_args
+      }
+
+      archive_attempt!
+
+      set(restarted_values)
+      move_to_state!(State::STARTED)
     end
 
-    def enter_state!(state)
-      time, usec_int = now
-      set(state: state.name, state.timestamp_name => usec_int)
-      self.state = state
-      self.send("#{state.timestamp_name}=",time)
-      redis.zadd(state.timestamp_name, usec_int, id)
-      redis.sadd(state.name, id)
+    def archive_attempt!
+      archived_job_key = job_key(attempt)
+      redis.rename(job_key, archived_job_key)
+      redis.hset(archived_job_key, :id, "#{id}:#{attempt}".to_json)
+      delete_locally!
+    end
+
+    def move_to_state!(state)
+      set(state: state, state.timestamp_name_key => Jobba::Time.now)
     end
 
     def initialize(attrs = {})
@@ -200,15 +220,17 @@ module Jobba
         @progress = attrs[:progress] || attrs['progress'] || 0
         @errors   = attrs[:errors]   || attrs['errors']   || []
         @data     = attrs[:data]     || attrs['data']     || {}
+        @attempt  = attrs[:attempt]  || attrs['attempt']  || 0
 
         if attrs[:persist]
           redis.multi do
             set({
               id: id,
               progress: progress,
-              errors: errors
+              errors: errors,
+              attempt: attempt
             })
-            enter_state!(state)
+            move_to_state!(state)
           end
         end
       end
@@ -231,37 +253,95 @@ module Jobba
     end
 
     def set(incoming_hash)
+      # in case the ID isn't set but is in the hash, set locally so other
+      # commands can use it
+      self.id = incoming_hash[:id] || id
+
       apply_consistency_rules!(incoming_hash)
-      set_hash_locally(incoming_hash)
+
       set_hash_in_redis(incoming_hash)
+      set_state_in_redis(incoming_hash)
+      set_state_timestamps_in_redis(incoming_hash)
+
+      set_hash_locally(incoming_hash)
     end
 
     def apply_consistency_rules!(hash)
       hash[:progress] = 1.0 if hash[:state] == State::SUCCEEDED
     end
 
+    def set_hash_in_redis(hash)
+      redis_key_value_array =
+        hash.to_a.flat_map do |kv_array|
+          key = kv_array[0]
+          value = kv_array[1]
+          value = Jobba::Utils.time_to_usec_int(value) if value.is_a?(::Time)
+
+          [key, value.to_json]
+        end
+
+      Jobba.redis.hmset(job_key, *redis_key_value_array)
+    end
+
+    def set_state_in_redis(hash)
+      return unless hash[:state]
+      redis.srem(state.name, id) unless state.nil? # leave old state if set
+      redis.sadd(hash[:state].name, id)            # enter new state
+    end
+
+    def set_state_timestamps_in_redis(hash)
+      timestamp_names = hash.keys & State::ALL_TIMESTAMP_SYMBOLS
+
+      timestamp_names.each do |timestamp_name|
+        usec_int = Utils.time_to_usec_int(hash[timestamp_name])
+        redis.zadd(timestamp_name, usec_int, id)
+      end
+    end
+
     def set_hash_locally(hash)
       hash.each{ |key, value| self.send("#{key}=", value) }
     end
 
-    def set_hash_in_redis(hash)
-      redis_key_value_array =
-        hash.to_a.flat_map{|kv_array| [kv_array[0], kv_array[1].to_json]}
+    def delete_in_redis!
+      redis.multi do
+        redis.del(job_key)
 
-      Jobba.redis.hmset(job_key, *redis_key_value_array)
+        State::ALL.each do |state|
+          redis.srem(state.name, id)
+          redis.zrem(state.timestamp_name, id)
+        end
+
+        redis.srem(job_name_key, id)
+
+        redis.del(job_args_key)
+        job_args.marshal_dump.values.each do |arg|
+          redis.srem(job_arg_key(arg), id)
+        end
+      end
+
+      prior_attempts.each(&:delete!)
+    end
+
+    def delete_locally!
+      clear_attrs
+      @json_encoded_attrs = nil
+    end
+
+    def clear_attrs
+      self.class.local_attrs.each{|aa| send("#{aa}=",nil)}
     end
 
     def job_name_key
       "job_name:#{job_name}"
     end
 
-    def job_key
-      self.class.job_key(id)
+    def job_key(attempt=nil)
+      self.class.job_key(id, attempt)
     end
 
-    def self.job_key(id)
+    def self.job_key(id, attempt=nil)
       raise(ArgumentError, "`id` cannot be nil") if id.nil?
-      "id:#{id}"
+      attempt.nil? ? "id:#{id}" : "id:#{id}:#{attempt}"
     end
 
     def job_args_key
@@ -275,6 +355,11 @@ module Jobba
 
     def job_arg_key(arg)
       "job_arg:#{arg}"
+    end
+
+    def job_errors_key(id)
+      raise(ArgumentError, "`id` cannot be nil") if id.nil?
+      "#{id}:errors"
     end
 
     def compute_fractional_progress(at, out_of)

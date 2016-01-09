@@ -123,6 +123,14 @@ There is also a special timestamp for when a kill is requested, `kill_requested_
 
 The order of states is not enforced, and you do not have to use all states.  However, note that you'll only be able to query for states you use (Jobba doesn't automatically travel through states you skip) and if you're using an unusual order your time-based queries will have to reflect that order.
 
+### Restarts
+
+Generally-speaking, you should only enter any state once.  Jobba only records the timestamp the first time you enter a state.
+
+The expection to this rule is that if call `started!` a second time, Jobba will note this as a restart.  The current values in the status will be archived and your status will look like a brand-new started status, with the exception that the `attempt` count will be incremented.  A restarted status can then enter `succeeded`, `failed`, or `killed` states and those timestamps will be stored.
+
+The `attempt` field is zero-indexed, so the first attempt is attempt `0`.
+
 ## Mark Progress
 
 If you want to have a way to track the progress of a job, you can call:
@@ -413,6 +421,10 @@ Note that, in operations having to do with time, this gem ignores anything beyon
 ### Efficiency
 
 Jobba strives to do all of its operations as efficiently as possible using built-in Redis operations.  If you find a place where the efficiency can be improved, please submit an issue or a pull request.
+
+### Write from one; Read from many
+
+Jobba assumes that any job is being run at one time by only one worker.  Jobba makes no accomodations for multiple processes updating a Status at the same time; multiple processes reading of a Status are fine of course.
 
 ## Development
 

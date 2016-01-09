@@ -11,6 +11,7 @@ describe Jobba::Status do
     expect(status.errors).to be_empty
     expect(status.recorded_at).to be_a Time
     expect(status.unqueued?).to be_truthy
+    expect(status.attempt).to eq 0
 
     # check that it got saved to redis
     expect(Jobba.redis.hgetall(described_class.job_key(status.id))).to include ({
@@ -18,6 +19,7 @@ describe Jobba::Status do
       "progress"=>"0",
       "errors"=>"[]",
       "state"=>"\"unqueued\"",
+      "attempt"=>"0",
       "recorded_at" => be_a(String),
     })
   end
@@ -251,14 +253,24 @@ describe Jobba::Status do
   end
 
   describe '#delete!' do
+    before(:each) {
+      @status = described_class.create!
+      @status.set_job_name("do_stuff")
+      @status.add_job_arg(:foo, "gid://app/MyModel/42")
+      @status.queued!.started!
+      @status.save('blah')
+      @status.request_kill!
+    }
+
     it 'gets rid of all knowledge of the status' do
-      status = described_class.create!
-      status.set_job_name("do_stuff")
-      status.add_job_arg(:foo, "gid://app/MyModel/42")
-      status.queued!.started!
-      status.request_kill!
-      status.delete!
-      expect(Jobba.redis.keys("*").count).to eq 0
+      @status.delete!
+      expect(Jobba.redis.keys("*")).to eq []
+    end
+
+    it 'gets rid of all knowledge of the status after a restart' do
+      @status.started! # restart
+      @status.delete!
+      expect(Jobba.redis.keys("*")).to eq []
     end
   end
 
@@ -304,6 +316,110 @@ describe Jobba::Status do
       expect(status.job_args['arg1']).to eq "blah"
       expect(status.job_args[:arg2]).to eq "42"
     end
+  end
+
+  describe 'restart' do
+
+    [:succeeded, :started].each do |state|
+
+      context "from `#{state}` status" do
+        before(:each) {
+          @status = make_status(state: state)
+          @status.save('hi there')
+          @status.set_job_name('job_name')
+          @status.add_job_arg(:arg, "foo")
+          @status.set_progress(0.7)
+          # TODO add errors
+
+          @original_id = @status.id
+          @original_recorded_at = @status.recorded_at
+          @original_queued_at = @status.queued_at
+
+          @status.started!
+        }
+
+        it 'is in started state' do
+          expect(@status).to be_started
+        end
+
+        it 'did_start?' do
+          expect(@status.did_start?).to be_truthy
+        end
+
+        it 'does not have data' do
+          expect(@status.data).to be_nil
+        end
+
+        it 'does have a job name' do
+          expect(@status.job_name).to eq "job_name"
+        end
+
+        it 'does not have job args' do
+          expect(@status.job_args.to_h).to eq({arg: 'foo'})
+        end
+
+        it 'does not have errors' do
+          expect(@status.errors).to be_empty
+        end
+
+        it 'has 0 progress' do
+          expect(@status.progress).to eq 0
+        end
+
+        it 'maintains ID, recorded_at, queued_at' do
+          expect(@status.id).to eq @original_id
+          expect(@status.recorded_at).to eq @original_recorded_at
+          expect(@status.queued_at).to eq @original_queued_at
+        end
+
+        it 'has an attempt of 1' do
+          expect(@status.attempt).to eq 1
+        end
+      end
+    end
+
+    describe '#prior_attempts' do
+      before(:each) {
+        @status = make_status(state: :started)
+        @status.save('1st attempt, attempt 0')
+        @status.started!
+        @status.save('2nd attempt, attempt 1')
+        @status.started!
+        @status.save('3rd attempt, attempt 2')
+      }
+
+      it 'counts attempts' do
+        expect(@status.attempt).to eq 2
+      end
+
+      it 'can access prior attempts' do
+        expect(@status.prior_attempts).to contain_exactly(
+          kind_of(Jobba::Status),
+          kind_of(Jobba::Status),
+        )
+      end
+
+      it 'maintains data in prior attempts' do
+        expect(@status.prior_attempts.collect(&:data)).to eq [
+          '1st attempt, attempt 0',
+          '2nd attempt, attempt 1'
+        ]
+      end
+
+      it 'has an ID of the form id:N' do
+        expect(@status.prior_attempts.collect(&:id)).to eq [
+          "#{@status.id}:0",
+          "#{@status.id}:1"
+        ]
+      end
+
+      it 'deletes prior attempts when current status deleted' do
+        prior_0, prior_1 = @status.prior_attempts
+        @status.delete!
+        expect(Jobba::Status.find(prior_0.id)).to be_nil
+      end
+    end
+
   end
 
 end
