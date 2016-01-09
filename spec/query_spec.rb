@@ -141,13 +141,18 @@ describe Jobba::Query do
         where(job_name: []).ids
       ).to be_empty
     end
+
+    it 'does not find statuses for overwritten job names' do
+      status_4.set_job_name("wowser")
+      expect(where(job_name: "yeehaw").ids).to eq []
+    end
   end
 
   context 'job_arg queries' do
     let!(:status_1) { make_status(id: :status_1) }
-    let!(:status_2) { make_status(id: :status_2).tap{|ss| ss.add_job_arg(:a, "A")} }
-    let!(:status_3) { make_status(id: :status_3).tap{|ss| ss.add_job_arg('b', "B")} }
-    let!(:status_4) { make_status(id: :status_4).tap{|ss| ss.add_job_arg('a', "A")} }
+    let!(:status_2) { make_status(id: :status_2).tap{|ss| ss.set_job_args(a: "A")} }
+    let!(:status_3) { make_status(id: :status_3).tap{|ss| ss.set_job_args('b' => "B")} }
+    let!(:status_4) { make_status(id: :status_4).tap{|ss| ss.set_job_args('a' => "A")} }
 
     it 'finds statuses for one job arg that has one status' do
       expect(
@@ -171,6 +176,11 @@ describe Jobba::Query do
       expect(
         where(job_arg: ["A", "A"]).ids
       ).to contain_exactly(status_2.id, status_4.id)
+    end
+
+    it 'does not find statuses for overwritten job args' do
+      status_3.set_job_args('b' => "C")
+      expect(where(job_arg: ["B"]).ids).to eq []
     end
   end
 

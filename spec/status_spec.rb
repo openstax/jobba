@@ -12,6 +12,7 @@ describe Jobba::Status do
     expect(status.recorded_at).to be_a Time
     expect(status.unqueued?).to be_truthy
     expect(status.attempt).to eq 0
+    expect(status.job_args.to_h).to eq({})
 
     # check that it got saved to redis
     expect(Jobba.redis.hgetall(described_class.job_key(status.id))).to include ({
@@ -256,7 +257,7 @@ describe Jobba::Status do
     before(:each) {
       @status = described_class.create!
       @status.set_job_name("do_stuff")
-      @status.add_job_arg(:foo, "gid://app/MyModel/42")
+      @status.set_job_args(foo: "gid://app/MyModel/42")
       @status.queued!.started!
       @status.save('blah')
       @status.request_kill!
@@ -281,7 +282,7 @@ describe Jobba::Status do
     end
   end
 
-  describe '#add_job_name' do
+  describe '#set_job_name' do
     before(:each) {
       @status = described_class.create!
       @status.set_job_name("fluffy")
@@ -295,14 +296,21 @@ describe Jobba::Status do
       status = Jobba::Status.find(@status.id)
       expect(status.job_name).to eq "fluffy"
     end
+
+    it 'overwrites previous name and survives a reload' do
+      @status.set_job_name("muppet")
+      expect(@status.job_name).to eq "muppet"
+
+      status = Jobba::Status.find(@status.id)
+      expect(status.job_name).to eq "muppet"
+    end
   end
 
-  describe '#add_job_arg' do
+  describe '#set_job_args' do
     before(:each) {
       @status = described_class.create!
 
-      @status.add_job_arg(:arg1, "blah")
-      @status.add_job_arg('arg2', "42")
+      @status.set_job_args(arg1: "blah", 'arg2' => "42")
     }
 
     it 'returns job args' do
@@ -316,6 +324,14 @@ describe Jobba::Status do
       expect(status.job_args['arg1']).to eq "blah"
       expect(status.job_args[:arg2]).to eq "42"
     end
+
+    it 'overwrites on a second call and that overwrite survives reload' do
+      @status.set_job_args(arg3: 'howdy')
+      expect(@status.job_args.to_h).to eq({arg3: 'howdy'})
+
+      status = Jobba::Status.find(@status.id)
+      expect(status.job_args.to_h).to eq({arg3: 'howdy'})
+    end
   end
 
   describe 'restart' do
@@ -327,7 +343,7 @@ describe Jobba::Status do
           @status = make_status(state: state)
           @status.save('hi there')
           @status.set_job_name('job_name')
-          @status.add_job_arg(:arg, "foo")
+          @status.set_job_args(arg: "foo")
           @status.set_progress(0.7)
           # TODO add errors
 

@@ -127,7 +127,7 @@ The order of states is not enforced, and you do not have to use all states.  How
 
 Generally-speaking, you should only enter any state once.  Jobba only records the timestamp the first time you enter a state.
 
-The expection to this rule is that if call `started!` a second time, Jobba will note this as a restart.  The current values in the status will be archived and your status will look like a brand-new started status, with the exception that the `attempt` count will be incremented.  A restarted status can then enter `succeeded`, `failed`, or `killed` states and those timestamps will be stored.
+The expection to this rule is that if call `started!` a second time, Jobba will note this as a restart.  The current values in the status will be archived and your status will look like a `started` status, with the exception that the `attempt` count will be incremented.  A restarted status can then enter `succeeded`, `failed`, or `killed` states and those timestamps will be stored.  `job_name` and `job_args` survive the restart.
 
 The `attempt` field is zero-indexed, so the first attempt is attempt `0`.
 
@@ -166,13 +166,13 @@ If you want to be able to query for all statuses for a certain kind of job, you 
 my_status.set_job_name("MySpecialJob")
 ```
 
-If you want to be able to query for all statuses that take a certain argument as input, you can add job arguments to a status:
+If you want to be able to query for all statuses that take a certain argument as input, you can set job arguments on a status:
 
 ```ruby
-my_status.add_job_arg(arg_name, arg)
+my_status.set_job_args(arg_1_name: arg_2, arg_2_name: arg_2)
 ```
 
-where `arg_name` is what the argument is called in your job (e.g. `"input_1"`) and `arg` is a way to identify the argument (e.g. `"gid://app/Person/72"`).
+where the keys are what the argument is called in your job (e.g. `"input_1"`) and the values are a way to identify the argument (e.g. `"gid://app/Person/72"`).
 
 You probably will only want to track complex arguments, e.g. models in your application.  E.g. you could have a `Book` model and a `PublishBook` background job and you may want to see all of the `PublishBook` jobs that have status for the `Book` with ID `53`.
 

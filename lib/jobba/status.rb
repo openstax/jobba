@@ -104,7 +104,6 @@ module Jobba
 
     def set_job_name(job_name)
       raise ArgumentError, "`job_name` must not be blank" if job_name.nil? || job_name.empty?
-      raise StandardError, "`job_name` can only be set once" if !self.job_name.nil?
 
       redis.multi do
         set(job_name: job_name)
@@ -112,15 +111,24 @@ module Jobba
       end
     end
 
-    def add_job_arg(arg_name, arg)
-      raise ArgumentError, "`arg_name` must not be blank" if arg_name.nil? || arg_name.empty?
-      raise ArgumentError, "`arg` must not be blank" if arg.nil? || arg.empty?
+    def set_job_args(args_hash)
+      raise ArgumentError, "All values in the hash passed to `set_job_args` must be strings" \
+        if args_hash.values.any?{|val| !val.is_a?(String)}
+
+      # TODO just store job args directly in `set` call?
 
       redis.multi do
-        self.job_args[arg_name.to_sym] = arg
-        redis.hset(job_args_key, arg_name, arg)
-        redis.sadd(job_arg_key(arg), id)
+        redis.del(job_args_key)
+        ((self.job_args || {}).values || []).each do |existing_arg|
+          redis.srem(job_arg_key(existing_arg), id)
+        end
+        args_hash.each do |arg_name, arg|
+          redis.hset(job_args_key, arg_name, arg)
+          redis.sadd(job_arg_key(arg), id)
+        end
       end
+
+      self.job_args = OpenStruct.new(args_hash)
     end
 
     # def add_error(error:)
