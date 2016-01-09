@@ -449,6 +449,7 @@ Travis runs the specs with both `fakeredis` and real Redis.
 1. Provide job min, max, and average durations.
 2. Implement `add_error`.
 8. Specs that test scale.
+9. Move redis code in `set_job_args`, `set_job_name`, and `save` into `set` to match rest of code.
 
 
 

@@ -212,14 +212,15 @@ module Jobba
       @json_encoded_attrs = attrs[:raw]
 
       if @json_encoded_attrs.nil? || @json_encoded_attrs.empty?
-        @id       = attrs[:id]       || attrs['id']       || SecureRandom.uuid
-        @state    = attrs[:state]    || attrs['state']    || State::UNKNOWN
-        @progress = attrs[:progress] || attrs['progress'] || 0
-        @errors   = attrs[:errors]   || attrs['errors']   || []
-        @data     = attrs[:data]     || attrs['data']     || {}
-        @attempt  = attrs[:attempt]  || attrs['attempt']  || 0
-        @job_args = attrs[:job_args] || attrs['job_args'] || {}
-        @job_name = attrs[:job_name] || attrs['job_name']
+
+        @id       = attrs[:id]       || SecureRandom.uuid
+        @state    = attrs[:state]    || State::UNKNOWN
+        @progress = attrs[:progress] || 0
+        @errors   = attrs[:errors]   || []
+        @data     = attrs[:data]     || {}
+        @attempt  = attrs[:attempt]  || 0
+        @job_args = attrs[:job_args] || {}
+        @job_name = attrs[:job_name]
 
         if attrs[:persist]
           redis.multi do
