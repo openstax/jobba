@@ -20,10 +20,10 @@ module Jobba
     # Finds the job with the specified ID and returns it.  If no such ID
     # exists in the store, returns nil.
     def self.find(id)
-      if (hash = raw_redis_hash(id))
-        new(raw: hash)
-      else
+      if (hash = raw_redis_hash(id)).empty?
         nil
+      else
+        new(raw: hash)
       end
     end
 
@@ -106,29 +106,23 @@ module Jobba
       raise ArgumentError, "`job_name` must not be blank" if job_name.nil? || job_name.empty?
 
       redis.multi do
+        redis.srem(job_name_key, id)
         set(job_name: job_name)
         redis.sadd(job_name_key, id)
       end
     end
 
-    def set_job_args(args_hash)
+    def set_job_args(args_hash={})
       raise ArgumentError, "All values in the hash passed to `set_job_args` must be strings" \
         if args_hash.values.any?{|val| !val.is_a?(String)}
 
-      # TODO just store job args directly in `set` call?
+      args_hash = normalize_for_json(args_hash)
 
       redis.multi do
-        redis.del(job_args_key)
-        ((self.job_args || {}).values || []).each do |existing_arg|
-          redis.srem(job_arg_key(existing_arg), id)
-        end
-        args_hash.each do |arg_name, arg|
-          redis.hset(job_args_key, arg_name, arg)
-          redis.sadd(job_arg_key(arg), id)
-        end
+        delete_self_from_job_args_set!
+        set(job_args: args_hash)
+        add_self_to_job_args_set!
       end
-
-      self.job_args = OpenStruct.new(args_hash)
     end
 
     # def add_error(error:)
@@ -145,8 +139,11 @@ module Jobba
     # end
 
     def save(data)
-      normalized_data = JSON.parse(data.to_json, quirks_mode: true)
-      set(data: normalized_data)
+      set(data: normalize_for_json(data))
+    end
+
+    def normalize_for_json(input)
+      JSON.parse(input.to_json, quirks_mode: true)
     end
 
     def delete
@@ -173,15 +170,7 @@ module Jobba
     end
 
     def self.raw_redis_hash(id)
-      main_hash, job_args_hash = redis.multi do
-        redis.hgetall(job_key(id))
-        redis.hgetall(job_args_key(id))
-      end
-
-      return nil if main_hash.empty?
-
-      main_hash['job_args'] = job_args_hash.to_json if !job_args_hash.nil?
-      main_hash
+      redis.hgetall(job_key(id))
     end
 
     def restart!
@@ -229,6 +218,8 @@ module Jobba
         @errors   = attrs[:errors]   || attrs['errors']   || []
         @data     = attrs[:data]     || attrs['data']     || {}
         @attempt  = attrs[:attempt]  || attrs['attempt']  || 0
+        @job_args = attrs[:job_args] || attrs['job_args'] || {}
+        @job_name = attrs[:job_name] || attrs['job_name']
 
         if attrs[:persist]
           redis.multi do
@@ -254,7 +245,7 @@ module Jobba
       when /.*_at/
         attribute.nil? ? nil : Jobba::Utils.time_from_usec_int(attribute.to_i)
       when 'job_args'
-        OpenStruct.new(attribute)
+        attribute || {}
       else
         attribute
       end
@@ -321,10 +312,7 @@ module Jobba
 
         redis.srem(job_name_key, id)
 
-        redis.del(job_args_key)
-        job_args.marshal_dump.values.each do |arg|
-          redis.srem(job_arg_key(arg), id)
-        end
+        delete_self_from_job_args_set!
       end
 
       prior_attempts.each(&:delete!)
@@ -333,6 +321,18 @@ module Jobba
     def delete_locally!
       clear_attrs
       @json_encoded_attrs = nil
+    end
+
+    def delete_self_from_job_args_set!
+      self.job_args.values.each do |arg|
+        redis.srem(job_arg_key(arg), id)
+      end
+    end
+
+    def add_self_to_job_args_set!
+      self.job_args.values.each do |arg|
+        redis.sadd(job_arg_key(arg), id)
+      end
     end
 
     def clear_attrs
@@ -350,15 +350,6 @@ module Jobba
     def self.job_key(id, attempt=nil)
       raise(ArgumentError, "`id` cannot be nil") if id.nil?
       attempt.nil? ? "id:#{id}" : "id:#{id}:#{attempt}"
-    end
-
-    def job_args_key
-      self.class.job_args_key(id)
-    end
-
-    def self.job_args_key(id)
-      raise(ArgumentError, "`id` cannot be nil") if id.nil?
-      "job_args:#{id}"
     end
 
     def job_arg_key(arg)

@@ -315,22 +315,22 @@ describe Jobba::Status do
 
     it 'returns job args' do
       expect(@status.job_args['arg1']).to eq "blah"
-      expect(@status.job_args[:arg2]).to eq "42"
+      expect(@status.job_args['arg2']).to eq "42"
     end
 
     it 'survives a reload' do
       status = Jobba::Status.find(@status.id)
 
       expect(status.job_args['arg1']).to eq "blah"
-      expect(status.job_args[:arg2]).to eq "42"
+      expect(status.job_args['arg2']).to eq "42"
     end
 
     it 'overwrites on a second call and that overwrite survives reload' do
       @status.set_job_args(arg3: 'howdy')
-      expect(@status.job_args.to_h).to eq({arg3: 'howdy'})
+      expect(@status.job_args.to_h).to eq({'arg3' => 'howdy'})
 
       status = Jobba::Status.find(@status.id)
-      expect(status.job_args.to_h).to eq({arg3: 'howdy'})
+      expect(status.job_args.to_h).to eq({'arg3' => 'howdy'})
     end
   end
 
@@ -371,7 +371,7 @@ describe Jobba::Status do
         end
 
         it 'does not have job args' do
-          expect(@status.job_args.to_h).to eq({arg: 'foo'})
+          expect(@status.job_args.to_h).to eq({'arg' => 'foo'})
         end
 
         it 'does not have errors' do

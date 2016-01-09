@@ -172,9 +172,17 @@ If you want to be able to query for all statuses that take a certain argument as
 my_status.set_job_args(arg_1_name: arg_2, arg_2_name: arg_2)
 ```
 
-where the keys are what the argument is called in your job (e.g. `"input_1"`) and the values are a way to identify the argument (e.g. `"gid://app/Person/72"`).
+where the keys are what the argument is called in your job (e.g. `"input_1"`) and the values are a way to identify the argument (e.g. `"gid://app/Person/72"`).  The values must currently be strings.
 
 You probably will only want to track complex arguments, e.g. models in your application.  E.g. you could have a `Book` model and a `PublishBook` background job and you may want to see all of the `PublishBook` jobs that have status for the `Book` with ID `53`.
+
+Note that you can set job args with names that are either symbols or strings, but you can only read the args back by the string form of their name, e.g.
+
+```ruby
+my_status.set_job_args(foo: "bar")
+my_status.job_args['foo']          # => "bar"
+my_status.job_args[:foo]           # => nil
+```
 
 ## Killing Jobs
 
