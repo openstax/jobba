@@ -145,7 +145,18 @@ This is useful if you need to show a progress bar on your client, for example.
 
 ## Recording Job Errors
 
-...
+The status can keep track of a list of errors.  Errors can be anything, as long as they are JSON-friendly.
+
+```ruby
+my_status.add_error("oh nooo!!")
+my_status.add_error(msg: "oh nooo!!", data: 42)
+```
+
+Errors are available from an `errors` attribute
+
+```ruby
+my_status.errors # => ["oh nooo!!", {"msg" => "oh nooo!!", "data" => 42}]
+```
 
 ## Saving Job-specific Data
 
@@ -156,7 +167,9 @@ my_status.save({a: 'blah', b: [1,2,3]})
 my_status.save("some string")
 ```
 
-Note that if you `save` a hash with symbol keys it will be converted to string keys.  In fact, any argument passed in to `save` will be converted to JSON and parsed back so that the `data` attribute returns the same thing regardless of if `data` is retrieved immediately after being set or after being loaded from Redis.
+## Normalization of Saved Data and Errors
+
+Note that if you `save` or `add_error` contains a hash with symbol keys, those keys will be converted to strings.  In fact, any argument passed in to these methods will be converted to JSON and parsed back again so that the `data` and `errors` attributes returns the same thing regardless of if they are retrieved immediately after being set or after being loaded from Redis.
 
 ## Setting Job Name and Arguments
 
@@ -217,7 +230,7 @@ When you get hold of a `Status`, via `create!`, `find`, `find!`, or as the resul
 | `id` | A Jobba-created UUID |
 | `state` | one of the states above |
 | `progress` | a float between 0.0 and 1.0 |
-| `errors` | TBD |
+| `errors` | an array of errors |
 | `data` | job-specific data |
 | `job_name` | The name of the job |
 | `job_args` | An hash of job arguments, {arg_name: arg, ...} |
@@ -447,7 +460,6 @@ Travis runs the specs with both `fakeredis` and real Redis.
 ## TODO
 
 1. Provide job min, max, and average durations.
-2. Implement `add_error`.
 8. Specs that test scale.
 9. Move redis code in `set_job_args`, `set_job_name`, and `save` into `set` to match rest of code.
 

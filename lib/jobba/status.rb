@@ -125,18 +125,12 @@ module Jobba
       end
     end
 
-    # def add_error(error:)
-    # maybe errors should be free form -- pass in whatever keys and values you want (client specific)
-    # we could supplement an error with a timestamp
+    def add_error(error)
+      raise ArgumentError, "The argument to `add_error` cannot be nil" if error.nil?
 
-    # def add_error(error, options = { })
-    #   options = { is_fatal: false }.merge(options)
-    #   @errors << { is_fatal: options[:is_fatal],
-    #                code: error.code,
-    #                message: error.message,
-    #                data: error.data }
-    #   set(errors: @errors)
-    # end
+      errors.push(normalize_for_json(error))
+      set(errors: errors)
+    end
 
     def save(data)
       set(data: normalize_for_json(data))
