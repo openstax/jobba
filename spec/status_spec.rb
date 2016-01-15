@@ -1,71 +1,9 @@
 require 'spec_helper'
+require 'status_shared_examples'
 
 describe Jobba::Status do
 
-  it 'can create a Status' do
-    status = described_class.create!
-
-    expect(status.id).to be_a String
-    expect(status.state).to eq Jobba::State::UNQUEUED
-    expect(status.progress).to eq 0
-    expect(status.errors).to be_empty
-    expect(status.recorded_at).to be_a Time
-    expect(status.unqueued?).to be_truthy
-    expect(status.attempt).to eq 0
-    expect(status.job_args.to_h).to eq({})
-
-    # check that it got saved to redis
-    expect(Jobba.redis.hgetall(described_class.job_key(status.id))).to include ({
-      "id"=> "\"#{status.id}\"",
-      "progress"=>"0",
-      "errors"=>"[]",
-      "state"=>"\"unqueued\"",
-      "attempt"=>"0",
-      "recorded_at" => be_a(String),
-    })
-  end
-
-  describe '#find' do
-    it 'returns a previously created status' do
-      status_id = described_class.create!.id
-      status = described_class.find(status_id)
-
-      expect(status.id).to eq status_id
-      expect(status.state).to eq Jobba::State::UNQUEUED
-      expect(status.progress).to eq 0
-      expect(status.errors).to be_empty
-      expect(status.data).to be_nil
-    end
-
-    it 'returns nil when the status is not in redis' do
-      expect(described_class.find('blah')).to be_nil
-    end
-  end
-
-  describe '#find!' do
-    it 'returns a previously created status' do
-      status_id = described_class.create!.id
-      status = described_class.find(status_id)
-
-      expect(status.id).to eq status_id
-      expect(status.state).to eq Jobba::State::UNQUEUED
-      expect(status.progress).to eq 0
-      expect(status.errors).to be_empty
-      expect(status.data).to be_nil
-      expect(status.recorded_at).to be_a(Time)
-    end
-
-    it 'creates an unknown status when the status is not in redis' do
-      status = described_class.find!('blah')
-
-      expect(status.id).to eq 'blah'
-      expect(status.state).to eq Jobba::State::UNKNOWN
-      expect(status.progress).to eq 0
-      expect(status.errors).to be_empty
-      expect(status.data).to be_empty
-      expect(status.recorded_at).to be_a(Time)
-    end
-  end
+  include_examples 'status'
 
   describe '#save' do
     it 'sets the redis value and the local instance variable' do

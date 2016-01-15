@@ -6,6 +6,14 @@ module Jobba
 
     include Jobba::Common
 
+    def self.all
+      Query.new
+    end
+
+    def self.where(*args)
+      all.where(*args)
+    end
+
     def self.create!
       create(state: State::UNQUEUED)
     end

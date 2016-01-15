@@ -40,20 +40,20 @@ end
 If you know you need a new `Status`, call `create!`:
 
 ```ruby
-Jobba::Status.create!
+Jobba.create!
 ```
 
 If you are looking for a status:
 
 ```ruby
-Jobba::Status.find(id)
+Jobba.find(id)
 ```
 
 which will return `nil` if no such `Status` is found. If you always want a `Status` object back,
 call:
 
 ```ruby
-Jobba::Status.find!(id)
+Jobba.find!(id)
 ```
 
 The result of `find!` will start in an `unknown` state if the ID doesn't exist in Redis.
@@ -63,7 +63,7 @@ The result of `find!` will start in an `unknown` state if the ID doesn't exist i
 ```ruby
 class MyJob < ::ActiveJob::Base
   def self.perform_later(an_arg:, another_arg:)
-    status = Jobba::Status.create!
+    status = Jobba.create!
     args.push(status.id)
 
     # In theory we'd mark as queued right after the call to super, but this messes
@@ -77,7 +77,7 @@ class MyJob < ::ActiveJob::Base
 
   def perform(*args, &block)
     # Pop the ID argument added by perform_later and get a Status
-    status = Jobba::Status.find!(args.pop)
+    status = Jobba.find!(args.pop)
     status.started!
 
     # ... do stuff ...
@@ -462,8 +462,3 @@ Travis runs the specs with both `fakeredis` and real Redis.
 1. Provide job min, max, and average durations.
 8. Specs that test scale.
 9. Move redis code in `set_job_args`, `set_job_name`, and `save` into `set` to match rest of code.
-
-
-
-
-
