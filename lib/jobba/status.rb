@@ -219,7 +219,7 @@ module Jobba
         @state    = attrs[:state]    || State::UNKNOWN
         @progress = attrs[:progress] || 0
         @errors   = attrs[:errors]   || []
-        @data     = attrs[:data]     || {}
+        @data     = attrs[:data]
         @attempt  = attrs[:attempt]  || 0
         @job_args = attrs[:job_args] || {}
         @job_name = attrs[:job_name]

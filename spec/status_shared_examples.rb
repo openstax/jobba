@@ -76,7 +76,7 @@ shared_examples 'status' do
       expect(status.state).to eq Jobba::State::UNKNOWN
       expect(status.progress).to eq 0
       expect(status.errors).to be_empty
-      expect(status.data).to be_empty
+      expect(status.data).to be_nil
       expect(status.recorded_at).to be_a(Time)
     end
   end
