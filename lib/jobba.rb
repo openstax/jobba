@@ -1,3 +1,6 @@
+require 'forwardable'
+require 'securerandom'
+
 require "redis"
 require "redis-namespace"
 
@@ -14,12 +17,10 @@ require "jobba/query"
 
 module Jobba
 
-  def self.all
-    Query.new
-  end
+  class << self
+    extend Forwardable
 
-  def self.where(*args)
-    all.where(*args)
+    def_delegators Jobba::Status, :all, :where, :create, :create!, :find, :find!
   end
 
   def self.configure
