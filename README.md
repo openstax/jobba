@@ -333,7 +333,7 @@ Jobba.where(job_name: ["MySpecialBackgroundJob", "MyOtherJob"])
 
 **Job Arguments**
 
-(requires having called the optional `add_job_arg` method)
+(requires having called the optional `set_job_arg` method)
 
 ```ruby
 Jobba.where(job_arg: "gid://app/MyModel/42")
