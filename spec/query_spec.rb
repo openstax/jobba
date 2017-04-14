@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe Jobba::Query do
+RSpec.describe Jobba::Query do
 
   it 'can get statuses of one state' do
     Jobba::Status.create!
@@ -268,11 +268,9 @@ describe Jobba::Query do
       expect(where(state: :started).ids).to eq [status.id]
     end
 
-    it 'succeeded then started has the right query fields' do
+    xit 'succeeded then started has the right query fields' do
 
     end
-
-
 
   end
 

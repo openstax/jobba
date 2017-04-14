@@ -2,7 +2,7 @@ require 'spec_helper'
 
 shared_examples 'status' do
 
-  it 'has working `where` and `all` methods' do
+  it 'has working `where`, `find_by` and `all` methods' do
     # smoke tests since just delegates to Query
 
     unqueued = Jobba::Status.create!
@@ -11,6 +11,7 @@ shared_examples 'status' do
     started  = Jobba::Status.create!.started!
 
     expect(described_class.where(state: :queued).ids).to contain_exactly(queued_1.id, queued_2.id)
+    expect(described_class.find_by(state: :started).id).to eq started.id
     expect(described_class.all.collect(&:id)).to(
       contain_exactly(unqueued.id, queued_1.id, queued_2.id, started.id)
     )

@@ -14,6 +14,10 @@ module Jobba
       all.where(*args)
     end
 
+    def self.find_by(*args)
+      all.where(*args).first
+    end
+
     def self.create!
       create(state: State::UNQUEUED)
     end
