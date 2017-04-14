@@ -17,7 +17,7 @@ class Jobba::Clause
       @keys = [keys].flatten
     else
       prefix = "#{prefix}:" unless prefix[-1] == ":"
-      @keys = [suffixes].flatten.collect{|suffix| prefix + suffix}
+      @keys = [suffixes].flatten.collect{|suffix| "#{prefix}#{suffix}"}
     end
 
     @min = min

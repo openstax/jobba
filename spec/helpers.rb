@@ -4,6 +4,7 @@ module Helpers
   # available, to help with debugging specs
   def make_status(options)
     id = options[:id]
+    provider_job_id = options[:provider_job_id]
     state = options[:state]
 
     status =
@@ -17,6 +18,8 @@ module Helpers
 
         Jobba::Status.find!(id.to_s)
       end
+
+    status.set_provider_job_id(provider_job_id) unless provider_job_id.nil?
 
     # Whether or not all states are used is up to the code using this library;
     # for these specs, we assume that states are traversed in order.

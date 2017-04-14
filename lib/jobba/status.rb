@@ -36,8 +36,9 @@ module Jobba
     end
 
     def self.local_attrs
-      %w(id state progress errors data kill_requested_at job_name job_args attempt prior_attempts) +
-      State::ALL.collect(&:timestamp_name)
+      %w(id state progress errors data kill_requested_at
+        job_name job_args provider_job_id attempt prior_attempts) +
+        State::ALL.collect(&:timestamp_name)
     end
 
     def reload!
@@ -111,7 +112,8 @@ module Jobba
     end
 
     def set_job_name(job_name)
-      raise ArgumentError, "`job_name` must not be blank" if job_name.nil? || job_name.empty?
+      raise ArgumentError, "`job_name` must not be blank", caller \
+        if job_name.nil? || job_name.empty?
 
       redis.multi do
         redis.srem(job_name_key, id)
@@ -121,8 +123,9 @@ module Jobba
     end
 
     def set_job_args(args_hash={})
-      raise ArgumentError, "All values in the hash passed to `set_job_args` must be strings" \
-        if args_hash.values.any?{|val| !val.is_a?(String)}
+      raise ArgumentError,
+            "All values in the hash passed to `set_job_args` must be strings",
+            caller if args_hash.values.any?{|val| !val.is_a?(String)}
 
       args_hash = normalize_for_json(args_hash)
 
@@ -130,6 +133,17 @@ module Jobba
         delete_self_from_job_args_set!
         set(job_args: args_hash)
         add_self_to_job_args_set!
+      end
+    end
+
+    def set_provider_job_id(provider_job_id)
+      raise ArgumentError, "`provider_job_id` must not be blank" \
+        if provider_job_id.nil? || (provider_job_id.respond_to?(:empty?) && provider_job_id.empty?)
+
+      redis.multi do
+        redis.srem(provider_job_id_key, id)
+        set(provider_job_id: provider_job_id)
+        redis.sadd(provider_job_id_key, id)
       end
     end
 
@@ -188,7 +202,8 @@ module Jobba
         progress: 0,
         errors: [],
         job_name: job_name,
-        job_args: job_args
+        job_args: job_args,
+        provider_job_id: provider_job_id
       }
 
       archive_attempt!
@@ -223,6 +238,7 @@ module Jobba
         @attempt  = attrs[:attempt]  || 0
         @job_args = attrs[:job_args] || {}
         @job_name = attrs[:job_name]
+        @provider_job_id = attrs[:provider_job_id]
 
         if attrs[:persist]
           redis.multi do
@@ -316,6 +332,8 @@ module Jobba
         redis.srem(job_name_key, id)
 
         delete_self_from_job_args_set!
+
+        redis.srem(provider_job_id_key, id)
       end
 
       prior_attempts.each(&:delete!)
@@ -358,6 +376,10 @@ module Jobba
 
     def job_arg_key(arg)
       "job_arg:#{arg}"
+    end
+
+    def provider_job_id_key
+      "provider_job_id:#{provider_job_id}"
     end
 
     def job_errors_key(id)

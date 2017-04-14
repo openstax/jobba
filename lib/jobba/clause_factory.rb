@@ -15,6 +15,8 @@ class Jobba::ClauseFactory
       Jobba::Clause.new(prefix: "job_name", suffixes: value)
     when :job_arg
       Jobba::Clause.new(prefix: "job_arg", suffixes: value)
+    when :provider_job_id
+      Jobba::Clause.new(prefix: "provider_job_id", suffixes: value)
     when :id
       Jobba::IdClause.new(value)
     when /.*_at/

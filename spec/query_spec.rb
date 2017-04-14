@@ -214,6 +214,36 @@ describe Jobba::Query do
     end
   end
 
+  context 'provider_job_id queries' do
+    let!(:status_1) { make_status(provider_job_id: 21) }
+    let!(:status_2) { make_status(provider_job_id: 42) }
+    let!(:status_3) { make_status(provider_job_id: 63) }
+    let!(:status_4) { make_status(provider_job_id: 84, state: :started) }
+
+    it 'queries no IDs' do
+      expect(where(provider_job_id: []).ids).to be_empty
+      expect(where(provider_job_id: []).ids).to be_empty
+    end
+
+    it 'queries one ID' do
+      expect(
+        where(provider_job_id: 21).ids
+      ).to eq [status_1.id]
+    end
+
+    it 'queries multiple IDs' do
+      expect(
+        where(provider_job_id: [21, 42]).ids
+      ).to contain_exactly(status_1.id, status_2.id)
+    end
+
+    it 'chains ID queries' do
+      expect(
+        where(provider_job_id: [63, 84]).where(state: :started).ids
+      ).to contain_exactly(status_4.id)
+    end
+  end
+
   context 'restarts' do
     # let!(:unqueued)    { make_status(state: :unqueued, id: :unqueued) }
     # let!(:queued)    { make_status(state: :queued, id: :queued) }

@@ -11,7 +11,8 @@ class Jobba::Statuses
 
   def_delegators :@ids, :empty?
 
-  def_delegators :load, :any?, :none?, :all?, :count, :map, :collect
+  def_delegators :load, :any?, :none?, :all?, :count, :length, :size,
+                 :map, :collect, :reduce, :inject, :first, :last
 
   def select!(&block)
     modify!(:select!, &block)
