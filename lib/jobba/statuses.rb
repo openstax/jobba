@@ -25,10 +25,10 @@ class Jobba::Statuses
     if any?(&:incomplete?)
       raise(Jobba::NotCompletedError,
             "This status cannot be deleted because it isn't complete.  Use " \
-            "`delete!` if you want to delete anyway.")
+            "`delete_all!` if you want to delete anyway.")
     end
 
-    delete!
+    delete_all!
   end
 
   def delete_all!

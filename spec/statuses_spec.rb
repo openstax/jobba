@@ -76,6 +76,12 @@ describe Jobba::Statuses do
       expect(statuses.count).to eq 3
     end
 
+    it 'does delete_all when there are no incompletes' do
+      queued.delete!
+      described_class.new(failed.id, succeeded.id).delete_all
+      expect(Jobba.redis.keys("*").count).to eq 0
+    end
+
     it 'does delete_all! when there are some incomplete' do
       expect{statuses.delete_all!}.to_not raise_error
       expect(statuses.count).to eq 0
