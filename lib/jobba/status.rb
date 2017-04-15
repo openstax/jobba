@@ -36,7 +36,7 @@ module Jobba
     end
 
     def self.local_attrs
-      %w(id state progress errors data kill_requested_at job_name job_args attempt) +
+      %w(id state progress errors data kill_requested_at job_name job_args attempt prior_attempts) +
       State::ALL.collect(&:timestamp_name)
     end
 
@@ -162,7 +162,7 @@ module Jobba
     end
 
     def prior_attempts
-      [*0..attempt-1].collect{|ii| self.class.find!("#{id}:#{ii}")}
+      @prior_attempts ||= [*0..attempt-1].collect{|ii| self.class.find!("#{id}:#{ii}")}
     end
 
     protected
@@ -319,6 +319,7 @@ module Jobba
       end
 
       prior_attempts.each(&:delete!)
+      @prior_attempts = nil
     end
 
     def delete_locally!

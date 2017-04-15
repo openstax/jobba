@@ -82,6 +82,12 @@ describe Jobba::Statuses do
       expect(statuses.to_a).to eq []
       expect(Jobba.redis.keys("*").count).to eq 0
     end
+
+    it 'can delete_all! when there are restarted jobs' do
+      failed.started! # restart
+      statuses.delete_all!
+      expect(Jobba.redis.keys("*").count).to eq 0
+    end
   end
 
   it 'can bulk request kill' do

@@ -33,6 +33,10 @@ class Jobba::Statuses
 
   def delete_all!
     load
+
+    # preload prior attempts because loading them is not `multi`-friendly
+    @cache.each(&:prior_attempts)
+
     redis.multi do
       @cache.each(&:delete!)
     end
