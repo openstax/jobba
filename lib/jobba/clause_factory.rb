@@ -5,7 +5,7 @@ class Jobba::ClauseFactory
   def self.new_clause(key, value)
     if value.nil?
       raise ArgumentError, "Nil search criteria are not currently " \
-                           "accepted in a Jobba `where` call"
+                           "accepted in a Jobba `where` call", caller
     end
 
     case key.to_sym
@@ -22,7 +22,7 @@ class Jobba::ClauseFactory
     when /.*_at/
       timestamp_clause(key, value)
     else
-      raise ArgumentError, "#{key} is not a valid key in a Jobba `where` call"
+      raise ArgumentError, "#{key} is not a valid key in a Jobba `where` call", caller
     end
   end
 
@@ -33,7 +33,7 @@ class Jobba::ClauseFactory
       case options
       when Array
         if options.length != 2
-          raise ArgumentError, "Wrong number of array entries for '#{timestamp_name}'."
+          raise ArgumentError, "Wrong number of array entries for '#{timestamp_name}'.", caller
         end
 
         [options[0], options[1]]
@@ -42,7 +42,8 @@ class Jobba::ClauseFactory
       else
         raise ArgumentError,
               "#{option_value} is not a valid value for a " +
-              "#{option_key} key in a Jobba `where` call"
+              "#{option_key} key in a Jobba `where` call",
+              caller
       end
 
     min = Jobba::Utils.time_to_usec_int(min)
@@ -70,14 +71,14 @@ class Jobba::ClauseFactory
   def self.validate_state_name!(state_name)
     [state_name].flatten.each do |name|
       if Jobba::State::ALL.none?{|state| state.name == name.to_s}
-        raise ArgumentError, "'#{name}' is not a valid state name."
+        raise ArgumentError, "'#{name}' is not a valid state name.", caller
       end
     end
   end
 
   def self.validate_timestamp_name!(timestamp_name)
     if Jobba::State::ALL.none?{|state| state.timestamp_name == timestamp_name.to_s}
-      raise ArgumentError, "'#{timestamp_name}' is not a valid timestamp."
+      raise ArgumentError, "'#{timestamp_name}' is not a valid timestamp.", caller
     end
   end
 

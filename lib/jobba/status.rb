@@ -141,7 +141,7 @@ module Jobba
     end
 
     def set_provider_job_id(provider_job_id)
-      raise ArgumentError, "`provider_job_id` must not be blank" \
+      raise ArgumentError, "`provider_job_id` must not be blank", caller \
         if provider_job_id.nil? || (provider_job_id.respond_to?(:empty?) && provider_job_id.empty?)
 
       redis.multi do
@@ -152,7 +152,7 @@ module Jobba
     end
 
     def add_error(error)
-      raise ArgumentError, "The argument to `add_error` cannot be nil" if error.nil?
+      raise ArgumentError, "The argument to `add_error` cannot be nil", caller if error.nil?
 
       errors.push(normalize_for_json(error))
       set(errors: errors)
@@ -374,7 +374,7 @@ module Jobba
     end
 
     def self.job_key(id, attempt=nil)
-      raise(ArgumentError, "`id` cannot be nil") if id.nil?
+      raise ArgumentError, "`id` cannot be nil", caller if id.nil?
       attempt.nil? ? "id:#{id}" : "id:#{id}:#{attempt}"
     end
 
@@ -387,19 +387,21 @@ module Jobba
     end
 
     def job_errors_key(id)
-      raise(ArgumentError, "`id` cannot be nil") if id.nil?
+      raise ArgumentError, "`id` cannot be nil", caller if id.nil?
       "#{id}:errors"
     end
 
     def compute_fractional_progress(at, out_of)
       if at.nil?
-        raise ArgumentError, "Must specify at least `at` argument to `progress` call"
+        raise ArgumentError, "Must specify at least `at` argument to `progress` call", caller
       elsif at < 0
-        raise ArgumentError, "progress cannot be negative (at=#{at})"
+        raise ArgumentError, "progress cannot be negative (at=#{at})", caller
       elsif out_of && out_of < at
-        raise ArgumentError, "`out_of` must be greater than `at` in `progress` calls"
+        raise ArgumentError, "`out_of` must be greater than `at` in `progress` calls", caller
       elsif out_of.nil? && (at < 0 || at > 1)
-        raise ArgumentError, "If `out_of` not specified, `at` must be in the range [0.0, 1.0]"
+        raise ArgumentError,
+              "If `out_of` not specified, `at` must be in the range [0.0, 1.0]",
+              caller
       end
 
       at.to_f / (out_of || 1).to_f
