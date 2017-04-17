@@ -14,6 +14,10 @@ module Jobba
       all.where(*args)
     end
 
+    def self.find_by(*args)
+      all.where(*args).first
+    end
+
     def self.create!
       create(state: State::UNQUEUED)
     end
@@ -36,8 +40,9 @@ module Jobba
     end
 
     def self.local_attrs
-      %w(id state progress errors data kill_requested_at job_name job_args attempt prior_attempts) +
-      State::ALL.collect(&:timestamp_name)
+      %w(id state progress errors data kill_requested_at
+        job_name job_args provider_job_id attempt prior_attempts) +
+        State::ALL.collect(&:timestamp_name)
     end
 
     def reload!
@@ -111,7 +116,8 @@ module Jobba
     end
 
     def set_job_name(job_name)
-      raise ArgumentError, "`job_name` must not be blank" if job_name.nil? || job_name.empty?
+      raise ArgumentError, "`job_name` must not be blank", caller \
+        if job_name.nil? || job_name.empty?
 
       redis.multi do
         redis.srem(job_name_key, id)
@@ -121,8 +127,9 @@ module Jobba
     end
 
     def set_job_args(args_hash={})
-      raise ArgumentError, "All values in the hash passed to `set_job_args` must be strings" \
-        if args_hash.values.any?{|val| !val.is_a?(String)}
+      raise ArgumentError,
+            "All values in the hash passed to `set_job_args` must be strings",
+            caller if args_hash.values.any?{|val| !val.is_a?(String)}
 
       args_hash = normalize_for_json(args_hash)
 
@@ -133,8 +140,19 @@ module Jobba
       end
     end
 
+    def set_provider_job_id(provider_job_id)
+      raise ArgumentError, "`provider_job_id` must not be blank", caller \
+        if provider_job_id.nil? || (provider_job_id.respond_to?(:empty?) && provider_job_id.empty?)
+
+      redis.multi do
+        redis.srem(provider_job_id_key, id)
+        set(provider_job_id: provider_job_id)
+        redis.sadd(provider_job_id_key, id)
+      end
+    end
+
     def add_error(error)
-      raise ArgumentError, "The argument to `add_error` cannot be nil" if error.nil?
+      raise ArgumentError, "The argument to `add_error` cannot be nil", caller if error.nil?
 
       errors.push(normalize_for_json(error))
       set(errors: errors)
@@ -188,7 +206,8 @@ module Jobba
         progress: 0,
         errors: [],
         job_name: job_name,
-        job_args: job_args
+        job_args: job_args,
+        provider_job_id: provider_job_id
       }
 
       archive_attempt!
@@ -223,6 +242,7 @@ module Jobba
         @attempt  = attrs[:attempt]  || 0
         @job_args = attrs[:job_args] || {}
         @job_name = attrs[:job_name]
+        @provider_job_id = attrs[:provider_job_id]
 
         if attrs[:persist]
           redis.multi do
@@ -316,6 +336,8 @@ module Jobba
         redis.srem(job_name_key, id)
 
         delete_self_from_job_args_set!
+
+        redis.srem(provider_job_id_key, id)
       end
 
       prior_attempts.each(&:delete!)
@@ -352,7 +374,7 @@ module Jobba
     end
 
     def self.job_key(id, attempt=nil)
-      raise(ArgumentError, "`id` cannot be nil") if id.nil?
+      raise ArgumentError, "`id` cannot be nil", caller if id.nil?
       attempt.nil? ? "id:#{id}" : "id:#{id}:#{attempt}"
     end
 
@@ -360,20 +382,26 @@ module Jobba
       "job_arg:#{arg}"
     end
 
+    def provider_job_id_key
+      "provider_job_id:#{provider_job_id}"
+    end
+
     def job_errors_key(id)
-      raise(ArgumentError, "`id` cannot be nil") if id.nil?
+      raise ArgumentError, "`id` cannot be nil", caller if id.nil?
       "#{id}:errors"
     end
 
     def compute_fractional_progress(at, out_of)
       if at.nil?
-        raise ArgumentError, "Must specify at least `at` argument to `progress` call"
+        raise ArgumentError, "Must specify at least `at` argument to `progress` call", caller
       elsif at < 0
-        raise ArgumentError, "progress cannot be negative (at=#{at})"
+        raise ArgumentError, "progress cannot be negative (at=#{at})", caller
       elsif out_of && out_of < at
-        raise ArgumentError, "`out_of` must be greater than `at` in `progress` calls"
+        raise ArgumentError, "`out_of` must be greater than `at` in `progress` calls", caller
       elsif out_of.nil? && (at < 0 || at > 1)
-        raise ArgumentError, "If `out_of` not specified, `at` must be in the range [0.0, 1.0]"
+        raise ArgumentError,
+              "If `out_of` not specified, `at` must be in the range [0.0, 1.0]",
+              caller
       end
 
       at.to_f / (out_of || 1).to_f

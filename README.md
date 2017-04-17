@@ -127,7 +127,7 @@ The order of states is not enforced, and you do not have to use all states.  How
 
 Generally-speaking, you should only enter any state once.  Jobba only records the timestamp the first time you enter a state.
 
-The expection to this rule is that if call `started!` a second time, Jobba will note this as a restart.  The current values in the status will be archived and your status will look like a `started` status, with the exception that the `attempt` count will be incremented.  A restarted status can then enter `succeeded`, `failed`, or `killed` states and those timestamps will be stored.  `job_name` and `job_args` survive the restart.
+The exception to this rule is that if call `started!` a second time, Jobba will note this as a restart.  The current values in the status will be archived and your status will look like a `started` status, with the exception that the `attempt` count will be incremented.  A restarted status can then enter `succeeded`, `failed`, or `killed` states and those timestamps will be stored.  `job_name`, `job_args` and `provider_job_id` survive the restart.
 
 The `attempt` field is zero-indexed, so the first attempt is attempt `0`.
 
@@ -171,7 +171,7 @@ my_status.save("some string")
 
 Note that if you `save` or `add_error` contains a hash with symbol keys, those keys will be converted to strings.  In fact, any argument passed in to these methods will be converted to JSON and parsed back again so that the `data` and `errors` attributes returns the same thing regardless of if they are retrieved immediately after being set or after being loaded from Redis.
 
-## Setting Job Name and Arguments
+## Setting Job Name, Arguments and Provider Job ID
 
 If you want to be able to query for all statuses for a certain kind of job, you can set the job's name in the status:
 
@@ -190,6 +190,12 @@ where the keys are what the argument is called in your job (e.g. `"input_1"`) an
 You probably will only want to track complex arguments, e.g. models in your application.  E.g. you could have a `Book` model and a `PublishBook` background job and you may want to see all of the `PublishBook` jobs that have status for the `Book` with ID `53`.
 
 Note that you can set job args with names that are either symbols or strings, but you can only read the args back by the string form of their name, e.g.
+
+If you want to be able to query for the status for a specific job record or to find the job record associated with a status, you can set the job's provider_job_id in the status:
+
+```ruby
+my_status.set_provider_job_id(42)
+```
 
 ```ruby
 my_status.set_job_args(foo: "bar")
@@ -333,7 +339,7 @@ Jobba.where(job_name: ["MySpecialBackgroundJob", "MyOtherJob"])
 
 **Job Arguments**
 
-(requires having called the optional `set_job_arg` method)
+(requires having called the optional `set_job_args` method)
 
 ```ruby
 Jobba.where(job_arg: "gid://app/MyModel/42")

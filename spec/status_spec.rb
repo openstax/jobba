@@ -196,6 +196,7 @@ describe Jobba::Status do
       @status = described_class.create!
       @status.set_job_name("do_stuff")
       @status.set_job_args(foo: "gid://app/MyModel/42")
+      @status.set_provider_job_id(42)
       @status.queued!.started!
       @status.save('blah')
       @status.request_kill!
@@ -269,6 +270,30 @@ describe Jobba::Status do
 
       status = Jobba::Status.find(@status.id)
       expect(status.job_args.to_h).to eq({'arg3' => 'howdy'})
+    end
+  end
+
+  describe '#set_provider_job_id' do
+    before(:each) {
+      @status = described_class.create!
+      @status.set_provider_job_id(42)
+    }
+
+    it 'returns job args' do
+      expect(@status.provider_job_id).to eq 42
+    end
+
+    it 'survives a reload' do
+      status = Jobba::Status.find(@status.id)
+      expect(status.provider_job_id).to eq 42
+    end
+
+    it 'overwrites previous name and survives a reload' do
+      @status.set_provider_job_id(84)
+      expect(@status.provider_job_id).to eq 84
+
+      status = Jobba::Status.find(@status.id)
+      expect(status.provider_job_id).to eq 84
     end
   end
 

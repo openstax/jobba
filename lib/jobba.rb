@@ -20,7 +20,7 @@ module Jobba
   class << self
     extend Forwardable
 
-    def_delegators Jobba::Status, :all, :where, :create, :create!, :find, :find!
+    def_delegators Jobba::Status, :all, :where, :find_by, :create, :create!, :find, :find!
   end
 
   def self.configure

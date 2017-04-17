@@ -6,18 +6,18 @@ class Jobba::Clause
   # if `keys` or `suffixes` is an array, all entries will be included in the resulting set
   def initialize(prefix: nil, suffixes: nil, keys: nil, min: nil, max: nil)
     if keys.nil? && prefix.nil? && suffixes.nil?
-      raise ArgumentError, "Either `keys` or both `prefix` and `suffix` must be specified."
+      raise ArgumentError, "Either `keys` or both `prefix` and `suffix` must be specified.", caller
     end
 
     if (prefix.nil? && !suffixes.nil?) || (!prefix.nil? && suffixes.nil?)
-      raise ArgumentError, "When `prefix` is given, so must `suffix` be, and vice versa."
+      raise ArgumentError, "When `prefix` is given, so must `suffix` be, and vice versa.", caller
     end
 
     if keys
       @keys = [keys].flatten
     else
       prefix = "#{prefix}:" unless prefix[-1] == ":"
-      @keys = [suffixes].flatten.collect{|suffix| prefix + suffix}
+      @keys = [suffixes].flatten.collect{|suffix| "#{prefix}#{suffix}"}
     end
 
     @min = min
