@@ -369,8 +369,9 @@ describe Jobba::Status do
 
       it 'deletes prior attempts when current status deleted' do
         prior_0, prior_1 = @status.prior_attempts
+        prior_0_id = prior_0.id
         @status.delete!
-        expect(Jobba::Status.find(prior_0.id)).to be_nil
+        expect(Jobba::Status.find(prior_0_id)).to be_nil
       end
     end
 
