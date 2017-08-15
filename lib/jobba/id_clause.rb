@@ -11,4 +11,12 @@ class Jobba::IdClause
     redis.zadd(new_key, @ids.collect{|id| [0, id]}) if @ids.any?
     new_key
   end
+
+  def result_ids
+    @ids.map(&:to_s)
+  end
+
+  def result_count
+    @ids.count
+  end
 end

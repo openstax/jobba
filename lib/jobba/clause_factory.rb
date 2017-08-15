@@ -65,7 +65,10 @@ class Jobba::ClauseFactory
     }.uniq
 
     validate_state_name!(state)
-    Jobba::Clause.new(keys: state)
+
+    # An ID is in only one state at a time, so we can tell `Clause` that
+    # info via `keys_contain_only_unique_ids` -- helps it be more efficient
+    Jobba::Clause.new(keys: state, keys_contain_only_unique_ids: true)
   end
 
   def self.validate_state_name!(state_name)

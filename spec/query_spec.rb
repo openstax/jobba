@@ -50,7 +50,7 @@ RSpec.describe Jobba::Query do
     queued   = make_status(state: :queued, id: :queued_1)
     started  = make_status(state: :started, id: :started_1)
 
-    expect(Jobba.redis).not_to receive(:mget)
+    expect(Jobba.redis).not_to receive(:hgetall)
     expect(where(state: :started).count).to eq 1
   end
 

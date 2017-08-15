@@ -14,11 +14,11 @@ RSpec.configure do |config|
 
   if Jobba::Spec::Utils.use_real_redis?
     config.before(:suite) do
-      Jobba::Spec::Utils.clear_jobba_keys
+      Jobba.clear_all_jobba_data!
     end
 
     config.after(:each) do
-      Jobba::Spec::Utils.clear_jobba_keys
+      Jobba.clear_all_jobba_data!
     end
   end
 

@@ -51,72 +51,82 @@ class Jobba::Query
   end
 
   class RunBlocks
-    attr_reader :redis_block, :output_block
+    attr_reader :multi_clause_block, :output_block, :single_clause_block
 
-    def initialize(redis_block, output_block)
-      @redis_block = redis_block
-      @output_block = output_block
-    end
-
-    def output_block_result_is_redis_block_result?
-      output_block.nil?
+    def initialize(single_clause_block:, multi_clause_block:, output_block: nil)
+      @single_clause_block = single_clause_block
+      @multi_clause_block = multi_clause_block
+      @output_block = output_block || ->(input) { input }
     end
   end
 
   GET_STATUSES = RunBlocks.new(
-    ->(working_set, redis) {
+    single_clause_block: ->(clause) {
+      clause.result_ids # becomes `clause.result_ids` and `output_block` used on this too
+    },
+    multi_clause_block: ->(working_set, redis) {
       redis.zrange(working_set, 0, -1)
     },
-    ->(ids) {
+    output_block: ->(ids) {
       Jobba::Statuses.new(ids)
     }
   )
 
   COUNT_STATUSES = RunBlocks.new(
-    ->(working_set, redis) {
-      redis.zcard(working_set)
+    single_clause_block: ->(clause) {
+      clause.result_count
     },
-    nil
+    multi_clause_block: ->(working_set, redis) {
+      redis.zcard(working_set)
+    }
   )
 
   def _run(run_blocks)
-    # Each clause in a query is converted to a sorted set (which may be filtered,
-    # e.g. in the case of timestamp clauses) and then the sets are successively
-    # intersected.
-    #
-    # Different users of this method have different uses for the final "working"
-    # set.  Because we want to bundle all of the creations and intersections of
-    # clause sets into one call to Redis (via a `multi` block), we have users
-    # of this method provide a final block to run on the working set within
-    # Redis (and within the `multi` call) and then another block to run on
-    # the output of the first block.
+    load_default_clause if clauses.empty?
 
-    multi_result = redis.multi do
-      load_default_clause if clauses.empty?
-      working_set = nil
+    if clauses.one?
+      # We can make specialized calls that don't need intermediate copies of sets
+      # to be made (which are costly)
+      clause_output = run_blocks.single_clause_block.call(clauses.first)
+    else
+      # Each clause in a query is converted to a sorted set (which may be filtered,
+      # e.g. in the case of timestamp clauses) and then the sets are successively
+      # intersected.
+      #
+      # Different users of this method have different uses for the final "working"
+      # set.  Because we want to bundle all of the creations and intersections of
+      # clause sets into one call to Redis (via a `multi` block), we have users
+      # of this method provide a final block to run on the working set within
+      # Redis (and within the `multi` call) and then another block to run on
+      # the output of the first block.
+      #
+      # This code also works for the single clause case, but it is less efficient
 
-      clauses.each do |clause|
-        clause_set = clause.to_new_set
+      multi_result = redis.multi do
 
-        if working_set.nil?
-          working_set = clause_set
-        else
-          redis.zinterstore(working_set, [working_set, clause_set], weights: [0, 0])
-          redis.del(clause_set)
+        working_set = nil
+
+        clauses.each do |clause|
+          clause_set = clause.to_new_set
+
+          if working_set.nil?
+            working_set = clause_set
+          else
+            redis.zinterstore(working_set, [working_set, clause_set], weights: [0, 0])
+            redis.del(clause_set)
+          end
         end
+
+        # This is later accessed as `multi_result[-2]` since it is the second to last output
+        run_blocks.multi_clause_block.call(working_set, redis)
+
+        redis.del(working_set)
       end
 
-      # This is later accessed as `multi_result[-2]` since it is the second to last output
-      run_blocks.redis_block.call(working_set, redis)
-
-      redis.del(working_set)
+      clause_output = multi_result[-2]
     end
 
-    redis_block_output = multi_result[-2]
-
-    run_blocks.output_block_result_is_redis_block_result? ?
-      redis_block_output :
-      run_blocks.output_block.call(redis_block_output)
+    run_blocks.output_block.call(clause_output)
   end
 
   def load_default_clause
