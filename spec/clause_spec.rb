@@ -19,13 +19,13 @@ describe Jobba::Clause do
       end
 
       it 'limits' do
-        expect(described_class.new(keys: "blah_at", offset: 1, limit: 2)
-                              .get_members(key: "blah_at", use_limit_if_sorted_set: true)).to eq %w(b c)
+        expect(described_class.new(keys: "blah_at")
+                              .get_members(key: "blah_at", offset: 1, limit: 2)).to eq %w(b c)
       end
 
       it 'filters by min/max and limits' do
-        expect(described_class.new(keys: "blah_at", min: 1, max: 4, offset: 0, limit: 1)
-                              .get_members(key: "blah_at", use_limit_if_sorted_set: true)).to eq %w(b)
+        expect(described_class.new(keys: "blah_at", min: 1, max: 4)
+                              .get_members(key: "blah_at", offset: 0, limit: 1)).to eq %w(b)
       end
     end
 
@@ -63,9 +63,9 @@ describe Jobba::Clause do
     end
 
     it 'can limit on combo of sorted and unsorted' do
-      clause = described_class.new(keys: ["blah", "blah_at"], offset: 1, limit: 2)
-      expect(clause.result_ids).to eq %w(b c)
-      expect(clause.result_count).to eq 2
+      clause = described_class.new(keys: ["blah", "blah_at"])
+      expect(clause.result_ids(offset: 1, limit: 2)).to eq %w(b c)
+      expect(clause.result_count(offset: 1, limit: 2)).to eq 2
     end
 
     it 'ignores uniqueness concerns if we set keys_contain_only_unique_ids' do

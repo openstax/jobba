@@ -12,11 +12,11 @@ class Jobba::IdClause
     new_key
   end
 
-  def result_ids
+  def result_ids(offset: nil, limit: nil)
     @ids.map(&:to_s)
   end
 
-  def result_count
+  def result_count(offset: nil, limit: nil)
     @ids.count
   end
 end

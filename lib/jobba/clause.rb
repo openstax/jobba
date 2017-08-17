@@ -5,7 +5,7 @@ class Jobba::Clause
 
   # if `keys` or `suffixes` is an array, all entries will be included in the resulting set
   def initialize(prefix: nil, suffixes: nil, keys: nil, min: nil, max: nil,
-                 offset: nil, limit: nil, keys_contain_only_unique_ids: false)
+                 keys_contain_only_unique_ids: false)
 
     if keys.nil? && prefix.nil? && suffixes.nil?
       raise ArgumentError, "Either `keys` or both `prefix` and `suffix` must be specified.", caller
@@ -13,10 +13,6 @@ class Jobba::Clause
 
     if (prefix.nil? && !suffixes.nil?) || (!prefix.nil? && suffixes.nil?)
       raise ArgumentError, "When `prefix` is given, so must `suffix` be, and vice versa.", caller
-    end
-
-    if (offset.nil? && !limit.nil?) || (!offset.nil? && limit.nil?)
-      raise ArgumentError, "When `offset` is given, so must `limit` be, and vice versa.", caller
     end
 
     if keys
@@ -28,9 +24,6 @@ class Jobba::Clause
 
     @min = min
     @max = max
-
-    @offset = offset
-    @limit = limit
 
     @keys_contain_only_unique_ids = keys_contain_only_unique_ids
   end
@@ -52,15 +45,17 @@ class Jobba::Clause
     new_key
   end
 
-  def result_ids
+  def result_ids(offset: nil, limit: nil)
     # If we have one key and it is sorted, we can let redis return limited IDs,
     # so handle that case specially.
 
     if @keys.one?
-      ids = get_members(key: @keys.first, use_limit_if_sorted_set: true)
+      # offset and limit may or may not be used, so have to do again below
+      ids = get_members(key: @keys.first, offset: offset, limit: limit)
     else
       ids = @keys.flat_map do |key|
-        get_members(key: key, use_limit_if_sorted_set: false)
+        # don't do limiting here -- doesn't make sense til we collect all the members
+        get_members(key: key)
       end
 
       ids.sort!
@@ -68,20 +63,20 @@ class Jobba::Clause
     end
 
     # This may repeat limiting done by redis, but no biggie
-    if !@offset.nil? && !@limit.nil?
-      ids.slice(@offset, @limit)
+    if !offset.nil? && !limit.nil?
+      ids.slice(offset, limit)
     else
       ids
     end
   end
 
-  def get_members(key:, use_limit_if_sorted_set: false)
+  def get_members(key:, offset: nil, limit: nil)
     if sorted_key?(key)
       min = @min.nil? ? "-inf" : "(#{@min}"
       max = @max.nil? ? "+inf" : "(#{@max}"
 
       options = {}
-      options[:limit] = [@offset, @limit] if use_limit_if_sorted_set && !@offset.nil? && !@limit.nil?
+      options[:limit] = [offset, limit] if !offset.nil? && !limit.nil?
 
       ids = redis.zrangebyscore(key, min, max, options)
     else
@@ -92,10 +87,10 @@ class Jobba::Clause
     ids
   end
 
-  def result_count
+  def result_count(offset: nil, limit: nil)
     if @keys.one? || @keys_contain_only_unique_ids
       # can count each key on its own using fast redis ops and add them up
-      unlimited_count = @keys.map do |key|
+      nonlimited_count = @keys.map do |key|
         if sorted_key?(key)
           if @min.nil? && @max.nil?
             redis.zcard(key)
@@ -110,10 +105,14 @@ class Jobba::Clause
         end
       end.reduce(:+)
 
-      [unlimited_count, @limit].compact.min
+      # TODO test when offset pushes limit past actual count;
+      # if unlimited_count = 10 and @limit = 1 but @offset = 20, count should be 0
+      # write a test for this
+      Jobba::Utils.limited_count(nonlimited_count: nonlimited_count,
+                                 offset: offset, limit: limit)
     else
       # Because we need to get a count of uniq members, have to do a full query
-      result_ids.count
+      result_ids(offset: offset, limit: limit).count
     end
   end
 
