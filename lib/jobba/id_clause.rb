@@ -13,10 +13,10 @@ class Jobba::IdClause
   end
 
   def result_ids(offset: nil, limit: nil)
-    @ids.map(&:to_s)
+    @ids.map(&:to_s).slice(offset || 0, limit || @ids.count)
   end
 
   def result_count(offset: nil, limit: nil)
-    @ids.count
+    Jobba::Utils.limited_count(nonlimited_count: @ids.count, offset: offset, limit: limit)
   end
 end

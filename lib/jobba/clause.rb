@@ -49,24 +49,26 @@ class Jobba::Clause
     # If we have one key and it is sorted, we can let redis return limited IDs,
     # so handle that case specially.
 
-    if @keys.one?
-      # offset and limit may or may not be used, so have to do again below
-      ids = get_members(key: @keys.first, offset: offset, limit: limit)
-    else
-      ids = @keys.flat_map do |key|
-        # don't do limiting here -- doesn't make sense til we collect all the members
-        get_members(key: key)
+    id_data =
+      if @keys.one?
+        # offset and limit may or may not be used, so have to do again below
+        get_members(key: @keys.first, offset: offset, limit: limit)
+      else
+        ids = @keys.flat_map do |key|
+          # don't do limiting here -- doesn't make sense til we collect all the members
+          get_members(key: key)[:ids]
+        end
+
+        ids.sort!
+        ids.uniq! unless @keys_contain_only_unique_ids
+
+        {ids: ids, is_limited: false}
       end
 
-      ids.sort!
-      ids.uniq! unless @keys_contain_only_unique_ids
-    end
-
-    # This may repeat limiting done by redis, but no biggie
-    if !offset.nil? && !limit.nil?
-      ids.slice(offset, limit)
+    if !offset.nil? && !limit.nil? && id_data[:is_limited] == false
+      id_data[:ids].slice(offset, limit)
     else
-      ids
+      id_data[:ids]
     end
   end
 
@@ -76,15 +78,21 @@ class Jobba::Clause
       max = @max.nil? ? "+inf" : "(#{@max}"
 
       options = {}
-      options[:limit] = [offset, limit] if !offset.nil? && !limit.nil?
+      is_limited = false
+
+      if !offset.nil? && !limit.nil?
+        options[:limit] = [offset, limit]
+        is_limited = true
+      end
 
       ids = redis.zrangebyscore(key, min, max, options)
+
+      {ids: ids, is_limited: is_limited}
     else
       ids = redis.smembers(key)
       ids.sort!
+      {ids: ids, is_limited: false}
     end
-
-    ids
   end
 
   def result_count(offset: nil, limit: nil)
@@ -105,9 +113,6 @@ class Jobba::Clause
         end
       end.reduce(:+)
 
-      # TODO test when offset pushes limit past actual count;
-      # if unlimited_count = 10 and @limit = 1 but @offset = 20, count should be 0
-      # write a test for this
       Jobba::Utils.limited_count(nonlimited_count: nonlimited_count,
                                  offset: offset, limit: limit)
     else

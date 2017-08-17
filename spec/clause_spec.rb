@@ -7,25 +7,33 @@ describe Jobba::Clause do
       before(:each) { Jobba.redis.zadd("blah_at", [[1, "a"], [2, "b"], [3, "c"], [4, "d"]]) }
 
       it 'filters by min only' do
-        expect(described_class.new(keys: "blah_at", min: 1).get_members(key: "blah_at")).to eq %w(b c d)
+        expect(
+          described_class.new(keys: "blah_at", min: 1).get_members(key: "blah_at")
+        ).to eq ({ids: %w(b c d), is_limited: false})
       end
 
       it 'filters by max only' do
-        expect(described_class.new(keys: "blah_at", max: 2).get_members(key: "blah_at")).to eq %w(a)
+        expect(
+          described_class.new(keys: "blah_at", max: 2).get_members(key: "blah_at")
+        ).to eq ({ids: %w(a), is_limited: false})
       end
 
       it 'filters by min and max' do
-        expect(described_class.new(keys: "blah_at", min: 1, max: 4).get_members(key: "blah_at")).to eq %w(b c)
+        expect(
+          described_class.new(keys: "blah_at", min: 1, max: 4).get_members(key: "blah_at")
+        ).to eq ({ids: %w(b c), is_limited: false})
       end
 
       it 'limits' do
-        expect(described_class.new(keys: "blah_at")
-                              .get_members(key: "blah_at", offset: 1, limit: 2)).to eq %w(b c)
+        expect(
+          described_class.new(keys: "blah_at").get_members(key: "blah_at", offset: 1, limit: 2)
+        ).to eq ({ids: %w(b c), is_limited: true})
       end
 
       it 'filters by min/max and limits' do
-        expect(described_class.new(keys: "blah_at", min: 1, max: 4)
-                              .get_members(key: "blah_at", offset: 0, limit: 1)).to eq %w(b)
+        expect(
+          described_class.new(keys: "blah_at", min: 1, max: 4).get_members(key: "blah_at", offset: 0, limit: 1)
+        ).to eq ({ids: %w(b), is_limited: true})
       end
     end
 
@@ -33,7 +41,7 @@ describe Jobba::Clause do
       before(:each) { Jobba.redis.sadd("blah", ["a", "b", "c"]) }
 
       it 'returns all members' do
-        expect(described_class.new(keys: "blah").get_members(key: "blah")).to contain_exactly("a", "b", "c")
+        expect(described_class.new(keys: "blah").get_members(key: "blah")[:ids]).to contain_exactly("a", "b", "c")
       end
     end
   end

@@ -17,13 +17,13 @@ class Jobba::Query
   end
 
   def limit(number)
-    @limit = number
-    @offset ||= 0
+    @_limit = number
+    @_offset ||= 0
     self
   end
 
   def offset(number)
-    @offset = number
+    @_offset = number
     self
   end
 
@@ -63,44 +63,6 @@ class Jobba::Query
     @clauses = []
   end
 
-  # class RunBlocks
-  #   attr_reader :multi_clause_block, :output_block, :single_clause_block
-
-  #   def initialize(single_clause_block:, multi_clause_block:, output_block: nil)
-  #     @single_clause_block = single_clause_block
-  #     @multi_clause_block = multi_clause_block
-  #     @output_block = output_block || ->(input) { input }
-  #   end
-  # end
-
-  # GET_STATUSES = RunBlocks.new(
-  #   single_clause_block: ->(clause, options={}) {
-  #     clause.result_ids(limit: options[:limit], offset: options[:offset])
-  #   },
-  #   multi_clause_block: ->(working_set, redis, options={}) {
-  #     start = options[:offset] || 0
-  #     stop = options[:limit].nil? ? -1 : start + options[:limit]
-  #     redis.zrange(working_set, start, stop)
-  #   },
-  #   output_block: ->(ids) {
-  #     Jobba::Statuses.new(ids)
-  #   }
-  # )
-
-  # COUNT_STATUSES = RunBlocks.new(
-  #   single_clause_block: ->(clause, options={}) {
-  #     clause.result_count(limit: options[:limit], offset: options[:offset])
-  #   },
-  #   multi_clause_block: ->(working_set, redis, options={}) {
-  #     redis.zcard(working_set)
-  #   }
-  #   output_block: ->(nonlimited_count, options={}) {
-  #     start = options[:offset] || 0
-  #     stop = [(options[:limit] || count), count].min
-  #     stop - start
-  #   }
-  # )
-
   class Operations
     attr_reader :query, :redis
 
@@ -109,31 +71,37 @@ class Jobba::Query
       @redis = query.redis
     end
 
+    # Standalone method that gives the final result when the query is one clause
     def handle_single_clause(clause)
       raise "AbstractMethod"
     end
 
-    def handle_result_set(result_set)
+    # When the query is multiple clauses, this method is called on the final set
+    # that represents the ANDing of all clauses.  It is called inside a `redis.multi`
+    # block.
+    def multi_clause_last_redis_op(result_set)
       raise "AbstractMethod"
     end
 
-    def postprocess_output(output)
-      output
+    # Called on the output from the redis multi block for multi-clause queries.
+    def multi_clause_postprocess(redis_output)
+      raise "AbstractMethod"
     end
   end
 
   class GetStatuses < Operations
     def handle_single_clause(clause)
-      clause.result_ids(limit: query._limit, offset: query._offset)
+      ids = clause.result_ids(limit: query._limit, offset: query._offset)
+      Jobba::Statuses.new(ids)
     end
 
-    def handle_result_set(result_set)
+    def multi_clause_last_redis_op(result_set)
       start = query._offset || 0
-      stop = query._limit.nil? ? -1 : start + query._limit
+      stop = query._limit.nil? ? -1 : start + query._limit - 1
       redis.zrange(result_set, start, stop)
     end
 
-    def postprocess_output(ids)
+    def multi_clause_postprocess(ids)
       Jobba::Statuses.new(ids)
     end
   end
@@ -143,12 +111,12 @@ class Jobba::Query
       clause.result_count(limit: query._limit, offset: query._offset)
     end
 
-    def handle_result_set(result_set)
+    def multi_clause_last_redis_op(result_set)
       redis.zcard(result_set)
     end
 
-    def postprocess_output(nonlimited_count)
-      Jobba::Utils.limited_count(nonlimited_count: nonlimited_count, offset: query._offset, limit: query._limit)
+    def multi_clause_postprocess(redis_output)
+      Jobba::Utils.limited_count(nonlimited_count: redis_output, offset: query._offset, limit: query._limit)
     end
   end
 
@@ -162,7 +130,7 @@ class Jobba::Query
     if clauses.one?
       # We can make specialized calls that don't need intermediate copies of sets
       # to be made (which are costly)
-      clause_output = operations.handle_single_clause(clauses.first)
+      operations.handle_single_clause(clauses.first)
     else
       # Each clause in a query is converted to a sorted set (which may be filtered,
       # e.g. in the case of timestamp clauses) and then the sets are successively
@@ -193,15 +161,13 @@ class Jobba::Query
         end
 
         # This is later accessed as `multi_result[-2]` since it is the second to last output
-        operations.handle_result_set(working_set)
+        operations.multi_clause_last_redis_op(working_set)
 
         redis.del(working_set)
       end
 
-      clause_output = multi_result[-2]
+      operations.multi_clause_postprocess(multi_result[-2])
     end
-
-    operations.postprocess_output(clause_output)
   end
 
   def load_default_clause
