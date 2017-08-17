@@ -74,8 +74,8 @@ class Jobba::Clause
 
   def get_members(key:, offset: nil, limit: nil)
     if sorted_key?(key)
-      min = @min.nil? ? "-inf" : "(#{@min}"
-      max = @max.nil? ? "+inf" : "(#{@max}"
+      min = @min.nil? ? "-inf" : "#{@min}"
+      max = @max.nil? ? "+inf" : "#{@max}"
 
       options = {}
       is_limited = false
@@ -103,8 +103,8 @@ class Jobba::Clause
           if @min.nil? && @max.nil?
             redis.zcard(key)
           else
-            min = @min.nil? ? "-inf" : "(#{@min}"
-            max = @max.nil? ? "+inf" : "(#{@max}"
+            min = @min.nil? ? "-inf" : "#{@min}"
+            max = @max.nil? ? "+inf" : "#{@max}"
 
             redis.zcount(key, min, max)
           end

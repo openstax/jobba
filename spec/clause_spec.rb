@@ -8,19 +8,19 @@ describe Jobba::Clause do
 
       it 'filters by min only' do
         expect(
-          described_class.new(keys: "blah_at", min: 1).get_members(key: "blah_at")
+          described_class.new(keys: "blah_at", min: 2).get_members(key: "blah_at")
         ).to eq ({ids: %w(b c d), is_limited: false})
       end
 
       it 'filters by max only' do
         expect(
           described_class.new(keys: "blah_at", max: 2).get_members(key: "blah_at")
-        ).to eq ({ids: %w(a), is_limited: false})
+        ).to eq ({ids: %w(a b), is_limited: false})
       end
 
       it 'filters by min and max' do
         expect(
-          described_class.new(keys: "blah_at", min: 1, max: 4).get_members(key: "blah_at")
+          described_class.new(keys: "blah_at", min: 2, max: 3).get_members(key: "blah_at")
         ).to eq ({ids: %w(b c), is_limited: false})
       end
 
@@ -32,7 +32,7 @@ describe Jobba::Clause do
 
       it 'filters by min/max and limits' do
         expect(
-          described_class.new(keys: "blah_at", min: 1, max: 4).get_members(key: "blah_at", offset: 0, limit: 1)
+          described_class.new(keys: "blah_at", min: 2, max: 4).get_members(key: "blah_at", offset: 0, limit: 1)
         ).to eq ({ids: %w(b), is_limited: true})
       end
     end
