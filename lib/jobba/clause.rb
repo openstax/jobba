@@ -1,5 +1,5 @@
 class Jobba::Clause
-  attr_reader :keys, :min, :max, :offset, :limit
+  attr_reader :keys, :min, :max
 
   include Jobba::Common
 
