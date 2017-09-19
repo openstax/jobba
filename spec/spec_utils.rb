@@ -10,11 +10,6 @@ module Jobba
         ENV["USE_REAL_REDIS"] == "true"
       end
 
-      def self.clear_jobba_keys
-        keys = Jobba.redis.keys("*")
-        Jobba.redis.del(*keys) if keys.any?
-      end
-
     end
   end
 end

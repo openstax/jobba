@@ -38,4 +38,12 @@ module Jobba
     )
   end
 
+  # Clears the whole shebang!  USE WITH CARE!
+  def self.clear_all_jobba_data!
+    keys = Jobba.redis.keys("*")
+    keys.each_slice(1000) do |some_keys|
+      Jobba.redis.del(*some_keys)
+    end
+  end
+
 end

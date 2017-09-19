@@ -50,7 +50,7 @@ RSpec.describe Jobba::Query do
     queued   = make_status(state: :queued, id: :queued_1)
     started  = make_status(state: :started, id: :started_1)
 
-    expect(Jobba.redis).not_to receive(:mget)
+    expect(Jobba.redis).not_to receive(:hgetall)
     expect(where(state: :started).count).to eq 1
   end
 
@@ -272,6 +272,44 @@ RSpec.describe Jobba::Query do
 
     end
 
+  end
+
+  context 'pagination' do
+    before(:each) do
+      %w(a b c e f g).each{|id| make_status(state: :queued, id: id)}
+      %w(d h i).each{|id| make_status(state: :failed, id: id)}
+    end
+
+    context 'single clause' do
+      it 'works for one state and 0 offset' do
+        expect(where(state: :queued).limit(3).offset(0).run.ids).to eq %w(a b c)
+        expect(where(state: :queued).limit(3).offset(3).run.ids).to eq %w(e f g)
+        expect(where(state: :queued).limit(3).offset(3).count).to eq 3
+      end
+
+      it 'works for two states and offset 2' do
+        expect(where(state: [:queued, :failed]).limit(6).offset(2).run.ids).to eq %w(c d e f g h)
+        expect(where(state: [:queued, :failed]).limit(6).offset(2).count).to eq 6
+      end
+    end
+
+    context 'multi clause' do
+      before(:each) do
+        %w(a c g).each{|id| Jobba::Status.find!(id).started!}
+        %w(a c).each{|id| Jobba::Status.find!(id).succeeded!}
+      end
+
+      it 'works' do
+        c1 = {started_at: {before: Time.now}}
+        c2 = {succeeded_at: {before: Time.now}}
+
+        expect(where(c1).where(c2).limit(1).offset(0).run.ids).to eq ["a"]
+        expect(where(c1).where(c2).limit(1).offset(0).count).to eq 1
+
+        expect(where(c1).where(c2).limit(2).offset(1).run.ids).to eq ["c"]
+        expect(where(c1).where(c2).limit(2).offset(1).count).to eq 1
+      end
+    end
   end
 
   def where(options)

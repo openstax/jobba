@@ -439,6 +439,17 @@ Jobba.where(...).run.count   # These pull data back to Ruby and count in Ruby
 Jobba.where(...).run.empty?
 ```
 
+## Pagination
+
+Pagination is supported with an ActiveRecord-like interface.  You can call `.limit(x)` and `.offset(y)` on
+queries, e.g.
+
+```ruby
+Jobba.where(state: :succeeded).limit(10).offset(20).to_a
+```
+
+Specifying a limit does not guarantee that you'll get that many elements back, as there may not be that many left in the result.
+
 ## Notes
 
 ### Times
@@ -448,6 +459,8 @@ Note that, in operations having to do with time, this gem ignores anything beyon
 ### Efficiency
 
 Jobba strives to do all of its operations as efficiently as possible using built-in Redis operations.  If you find a place where the efficiency can be improved, please submit an issue or a pull request.
+
+Single-clause queries (those with one `where` call) have been optimized.  `Jobba.all` is a single-clause query.  If you have lots of IDs, try to get by with single-clause queries.  Multi-clause queries (including `count`) have to copy sets into temporary working sets where query clauses are ANDed together.  This can be expensive for large datasets.
 
 ### Write from one; Read from many
 
@@ -462,6 +475,12 @@ $> USE_REAL_REDIS=true rspec
 ```
 
 Travis runs the specs with both `fakeredis` and real Redis.
+
+Clauses need to implement three methods:
+
+1. `to_new_set` - puts the IDs indicated by the clause into a new sorted set in redis
+2. `result_ids` - used to get the IDs indicated by the clause when the clause is the only one in the query
+3. `result_count` - used to get the count of IDs indicated by the clause when the clause is the only one in the query
 
 ## TODO
 
