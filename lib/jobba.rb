@@ -46,4 +46,19 @@ module Jobba
     end
   end
 
+  def self.cleanup(seconds_ago: 60*60*24*30*12, batch_size: 1000)
+    start_time = Jobba::Time.now
+    delete_before = start_time - seconds_ago
+
+    jobs_count = 0
+    loop do
+      jobs = where(recorded_at: { before: delete_before }).limit(batch_size).to_a
+      jobs.each(&:delete!)
+
+      num_jobs = jobs.size
+      jobs_count += num_jobs
+      break if jobs.size < batch_size
+    end
+  end
+
 end
