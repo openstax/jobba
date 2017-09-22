@@ -15,8 +15,6 @@ describe Jobba do
   end
 
   it 'can cleanup old statuses' do
-    Jobba.clear_all_jobba_data!
-
     current_time = Jobba::Time.now
 
     tested_months = 0.upto(59).to_a
