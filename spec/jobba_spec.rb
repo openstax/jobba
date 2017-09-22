@@ -14,4 +14,17 @@ describe Jobba do
     expect(Jobba.all.count).to eq 6
   end
 
+  it 'can cleanup old statuses' do
+    current_time = Jobba::Time.now
+
+    tested_months = 0.upto(59).to_a
+    tested_months.each do |nn|
+      job = Jobba::Status.create!
+      job.send :set, recorded_at: current_time - nn*60*60*24*30 # 1 month
+    end
+
+    expect { Jobba.cleanup }.to change { Jobba.all.count }.from(60).to(12)
+    expect(Jobba.all.map(&:recorded_at).min).to be > current_time - 60*60*24*30*12 # 1 year
+  end
+
 end
