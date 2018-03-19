@@ -5,6 +5,7 @@ describe Jobba::Clause do
   context '#get_members' do
     context 'sorted set' do
       before(:each) { Jobba.redis.zadd("blah_at", [[1, "a"], [2, "b"], [3, "c"], [4, "d"]]) }
+      after(:each)  { Jobba.redis.del("blah_at") }
 
       it 'filters by min only' do
         expect(
@@ -50,6 +51,10 @@ describe Jobba::Clause do
     before(:each) do
       Jobba.redis.zadd("blah_at", [[1, "a"], [2, "b"], [3, "c"], [4, "d"]])
       Jobba.redis.sadd("blah", ["c", "b", "a", "e"])
+    end
+    after(:each)  do
+      Jobba.redis.del("blah_at")
+      Jobba.redis.del("blah")
     end
 
     it 'works on one sorted set' do
