@@ -38,14 +38,6 @@ module Jobba
     )
   end
 
-  # Clears the whole shebang!  USE WITH CARE!
-  def self.clear_all_jobba_data!
-    keys = Jobba.redis.keys("*")
-    keys.each_slice(1000) do |some_keys|
-      Jobba.redis.del(*some_keys)
-    end
-  end
-
   def self.cleanup(seconds_ago: 60*60*24*30*12, batch_size: 1000)
     start_time = Jobba::Time.now
     delete_before = start_time - seconds_ago
@@ -59,6 +51,12 @@ module Jobba
       jobs_count += num_jobs
       break if jobs.size < batch_size
     end
+    jobs_count
+  end
+
+  # Clears the whole shebang!  USE WITH CARE!
+  def self.clear_all_jobba_data!
+    cleanup(seconds_ago: 0)
   end
 
 end

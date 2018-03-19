@@ -4,6 +4,9 @@ require 'ostruct'
 module Jobba
   class Status
 
+    # 68.years in seconds
+    NEVER_EXPIRES = 2145916800
+
     include Jobba::Common
 
     def self.all
@@ -104,6 +107,7 @@ module Jobba
       if redis.hsetnx(job_key, :kill_requested_at, usec_int)
         @kill_requested_at = time
       end
+      redis.expire job_key, NEVER_EXPIRES
     end
 
     def kill_requested?
@@ -123,6 +127,7 @@ module Jobba
         redis.srem(job_name_key, id)
         set(job_name: job_name)
         redis.sadd(job_name_key, id)
+        redis.expire job_name_key, NEVER_EXPIRES
       end
     end
 
@@ -148,6 +153,7 @@ module Jobba
         redis.srem(provider_job_id_key, id)
         set(provider_job_id: provider_job_id)
         redis.sadd(provider_job_id_key, id)
+        redis.expire provider_job_id_key, NEVER_EXPIRES
       end
     end
 
@@ -220,6 +226,7 @@ module Jobba
       archived_job_key = job_key(attempt)
       redis.rename(job_key, archived_job_key)
       redis.hset(archived_job_key, :id, "#{id}:#{attempt}".to_json)
+      redis.expire archived_job_key, NEVER_EXPIRES
       delete_locally!
     end
 
@@ -246,12 +253,12 @@ module Jobba
 
         if attrs[:persist]
           redis.multi do
-            set({
+            set(
               id: id,
               progress: progress,
               errors: errors,
               attempt: attempt
-            })
+            )
             move_to_state!(state)
           end
         end
@@ -303,12 +310,14 @@ module Jobba
         end
 
       Jobba.redis.hmset(job_key, *redis_key_value_array)
+      Jobba.redis.expire job_key, NEVER_EXPIRES
     end
 
     def set_state_in_redis(hash)
       return unless hash[:state]
       redis.srem(state.name, id) unless state.nil? # leave old state if set
       redis.sadd(hash[:state].name, id)            # enter new state
+      redis.expire hash[:state].name, NEVER_EXPIRES
     end
 
     def set_state_timestamps_in_redis(hash)
@@ -317,6 +326,7 @@ module Jobba
       timestamp_names.each do |timestamp_name|
         usec_int = Utils.time_to_usec_int(hash[timestamp_name])
         redis.zadd(timestamp_name, usec_int, id)
+        redis.expire timestamp_name, NEVER_EXPIRES
       end
     end
 
@@ -330,14 +340,18 @@ module Jobba
 
         State::ALL.each do |state|
           redis.srem(state.name, id)
+          redis.expire state.name, NEVER_EXPIRES
           redis.zrem(state.timestamp_name, id)
+          redis.expire state.timestamp_name, NEVER_EXPIRES
         end
 
         redis.srem(job_name_key, id)
+        redis.expire job_name_key, NEVER_EXPIRES
 
         delete_self_from_job_args_set!
 
         redis.srem(provider_job_id_key, id)
+        redis.expire provider_job_id_key, NEVER_EXPIRES
       end
 
       prior_attempts.each(&:delete!)
@@ -351,13 +365,19 @@ module Jobba
 
     def delete_self_from_job_args_set!
       self.job_args.values.each do |arg|
-        redis.srem(job_arg_key(arg), id)
+        key = job_arg_key(arg)
+
+        redis.srem(key, id)
+        redis.expire key, NEVER_EXPIRES
       end
     end
 
     def add_self_to_job_args_set!
       self.job_args.values.each do |arg|
-        redis.sadd(job_arg_key(arg), id)
+        key = job_arg_key(arg)
+
+        redis.sadd(key, id)
+        redis.expire key, NEVER_EXPIRES
       end
     end
 
