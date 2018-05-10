@@ -246,12 +246,12 @@ module Jobba
 
         if attrs[:persist]
           redis.multi do
-            set({
+            set(
               id: id,
               progress: progress,
               errors: errors,
               attempt: attempt
-            })
+            )
             move_to_state!(state)
           end
         end

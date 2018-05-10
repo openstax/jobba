@@ -1,3 +1,4 @@
+require 'delegate'
 require 'forwardable'
 require 'securerandom'
 
@@ -10,6 +11,7 @@ require "jobba/time"
 require "jobba/utils"
 require "jobba/configuration"
 require "jobba/common"
+require "jobba/redis_with_expiration"
 require "jobba/state"
 require "jobba/status"
 require "jobba/statuses"
@@ -32,18 +34,12 @@ module Jobba
   end
 
   def self.redis
-    @redis ||= Redis::Namespace.new(
-      configuration.namespace,
-      redis: Redis.new(configuration.redis_options || {})
+    @redis ||= Jobba::RedisWithExpiration.new(
+      Redis::Namespace.new(
+        configuration.namespace,
+        redis: Redis.new(configuration.redis_options || {})
+      )
     )
-  end
-
-  # Clears the whole shebang!  USE WITH CARE!
-  def self.clear_all_jobba_data!
-    keys = Jobba.redis.keys("*")
-    keys.each_slice(1000) do |some_keys|
-      Jobba.redis.del(*some_keys)
-    end
   end
 
   def self.cleanup(seconds_ago: 60*60*24*30*12, batch_size: 1000)
@@ -59,6 +55,12 @@ module Jobba
       jobs_count += num_jobs
       break if jobs.size < batch_size
     end
+    jobs_count
+  end
+
+  # Clears the whole shebang!  USE WITH CARE!
+  def self.clear_all_jobba_data!
+    cleanup(seconds_ago: 0)
   end
 
 end

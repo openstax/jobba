@@ -13,15 +13,13 @@ RSpec.configure do |config|
   config.include Helpers
 
   if Jobba::Spec::Utils.use_real_redis?
-    config.before(:suite) do
+    config.before(:each) do
       Jobba.clear_all_jobba_data!
     end
 
-    config.after(:each) do
+    config.after(:suite) do
       Jobba.clear_all_jobba_data!
     end
   end
 
 end
-
-
