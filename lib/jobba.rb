@@ -1,3 +1,4 @@
+require 'delegate'
 require 'forwardable'
 require 'securerandom'
 
@@ -10,6 +11,7 @@ require "jobba/time"
 require "jobba/utils"
 require "jobba/configuration"
 require "jobba/common"
+require "jobba/redis_with_expiration"
 require "jobba/state"
 require "jobba/status"
 require "jobba/statuses"
@@ -32,9 +34,11 @@ module Jobba
   end
 
   def self.redis
-    @redis ||= Redis::Namespace.new(
-      configuration.namespace,
-      redis: Redis.new(configuration.redis_options || {})
+    @redis ||= Jobba::RedisWithExpiration.new(
+      Redis::Namespace.new(
+        configuration.namespace,
+        redis: Redis.new(configuration.redis_options || {})
+      )
     )
   end
 
