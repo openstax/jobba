@@ -403,30 +403,42 @@ describe Jobba::Status do
   end
 
   describe 'errors' do
-    it 'lets you add an error' do
-      status = make_status(state: :started)
-      status.add_error({'message' => 'blah', 'foo' => 2})
-      expect(status.errors).to eq [{'message' => 'blah', 'foo' => 2}]
+    let(:status) { make_status(state: :started) }
+
+    describe 'adding' do
+      it 'adds a simple hash error' do
+        status.add_error({'message' => 'blah', 'foo' => 2})
+        expect(status.errors).to eq [{'message' => 'blah', 'foo' => 2}]
+      end
+
+      it 'adds an arbitrary object as error' do
+        class Error < Object
+          def initialize
+            @foo = 'bar'
+          end
+        end
+        status.add_error(Error.new)
+        expect(status.errors).to eq [{"foo"=>"bar"}]
+      end
+
     end
 
     it 'lets you add an error and survives a manual reload' do
-      status = make_status(state: :started)
       status.add_error({'message' => 'blah', 'foo' => 2})
-      status = Jobba::Status.find(status.id)
-      expect(status.errors).to eq [{'message' => 'blah', 'foo' => 2}]
+      found = Jobba::Status.find(status.id)
+      expect(found.errors).to eq [{'message' => 'blah', 'foo' => 2}]
     end
 
     it 'lets you add multiple errors' do
-      status = make_status(state: :started)
       status.add_error("howdy")
       status.add_error(2)
       status.add_error([1,2,3])
       status.add_error(boo: 2)
       expect(status.errors).to eq ["howdy", 2, [1,2,3], {'boo' => 2}]
-      status = Jobba::Status.find(status.id)
-      expect(status.errors).to eq ["howdy", 2, [1,2,3], {'boo' => 2}]
-      status.reload!
-      expect(status.errors).to eq ["howdy", 2, [1,2,3], {'boo' => 2}]
+      found = Jobba::Status.find(status.id)
+      expect(found.errors).to eq ["howdy", 2, [1,2,3], {'boo' => 2}]
+      found.reload!
+      expect(found.errors).to eq ["howdy", 2, [1,2,3], {'boo' => 2}]
     end
   end
 

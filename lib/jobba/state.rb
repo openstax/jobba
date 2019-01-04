@@ -59,11 +59,6 @@ class Jobba::State
   ALL_TIMESTAMP_SYMBOLS = ALL.collect{|state| state.timestamp_name_key}.freeze
 
   def to_json
-    name.to_json
+    "\"#{name}\""
   end
 end
-
-
-
-
-
