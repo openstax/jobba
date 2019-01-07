@@ -17,3 +17,5 @@ notifications:
 env:
   - USE_REAL_REDIS=false
   - USE_REAL_REDIS=true
+before_install:
+   - gem install bundler -v '< 2'
