@@ -1,5 +1,5 @@
-require 'json'
 require 'ostruct'
+require 'oj'
 
 module Jobba
   class Status
@@ -163,7 +163,11 @@ module Jobba
     end
 
     def normalize_for_json(input)
-      JSON.parse(input.to_json, quirks_mode: true)
+      Oj.load(convert_to_json(input))
+    end
+
+    def convert_to_json(value)
+      Oj.dump(value, mode: :custom, use_to_json: true)
     end
 
     def delete
@@ -219,7 +223,7 @@ module Jobba
     def archive_attempt!
       archived_job_key = job_key(attempt)
       redis.rename(job_key, archived_job_key)
-      redis.hset(archived_job_key, :id, "#{id}:#{attempt}".to_json)
+      redis.hset(archived_job_key, :id, convert_to_json("#{id}:#{attempt}"))
       delete_locally!
     end
 
@@ -260,7 +264,7 @@ module Jobba
 
     def load_from_json_encoded_attrs(attribute_name)
       json = (@json_encoded_attrs || {})[attribute_name]
-      attribute = json.nil? ? nil : JSON.parse(json, quirks_mode: true)
+      attribute = json.nil? ? nil : Oj.load(json)
 
       case attribute_name
       when 'state'
@@ -298,8 +302,7 @@ module Jobba
           key = kv_array[0]
           value = kv_array[1]
           value = Jobba::Utils.time_to_usec_int(value) if value.is_a?(::Time)
-
-          [key, value.to_json]
+          [key, convert_to_json(value)]
         end
 
       Jobba.redis.hmset(job_key, *redis_key_value_array)

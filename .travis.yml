@@ -2,6 +2,10 @@ sudo: false
 language: ruby
 rvm:
   - 2.2.3
+  - 2.3.8
+  - 2.4.5
+  - 2.5.3
+  - 2.6.0
 cache: bundler
 bundler_args: --retry=6
 script:
@@ -13,3 +17,5 @@ notifications:
 env:
   - USE_REAL_REDIS=false
   - USE_REAL_REDIS=true
+before_install:
+   - gem install bundler -v '< 2'
