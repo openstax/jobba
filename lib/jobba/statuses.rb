@@ -35,9 +35,8 @@ class Jobba::Statuses
   def delete_all!
     load
 
-    # Prior attempts are nested Jobba statuses so they will all be deleted
-    # as we iterate through the whole cache, but we can't load them inside the multi
-    @cache.each { |cache| cache.instance_variable_set :@prior_attempts, [] }
+    # preload prior attempts because loading them is not `multi`-friendly
+    @cache.each { |cache| cache.prior_attempts.each(&:prior_attempts) }
 
     redis.multi do
       @cache.each(&:delete!)
