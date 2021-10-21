@@ -36,7 +36,7 @@ class Jobba::Statuses
     load
 
     # preload prior attempts because loading them is not `multi`-friendly
-    @cache.each(&:prior_attempts)
+    @cache.each { |cache| cache.prior_attempts.each(&:prior_attempts) }
 
     redis.multi do
       @cache.each(&:delete!)
