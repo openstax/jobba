@@ -67,9 +67,9 @@ class Jobba::Statuses
   def get_all!
     id_keys = @ids.collect { |id| "id:#{id}" }
 
-    raw_statuses = redis.pipelined do
+    raw_statuses = redis.pipelined do |pipe|
       id_keys.each do |key|
-        hgetall(key)
+        pipe.hgetall(key)
       end
     end
 
