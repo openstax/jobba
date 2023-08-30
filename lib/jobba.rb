@@ -2,23 +2,22 @@ require 'delegate'
 require 'forwardable'
 require 'securerandom'
 
-require "redis"
-require "redis-namespace"
+require 'redis'
+require 'redis-namespace'
 
-require "jobba/version"
-require "jobba/exceptions"
-require "jobba/time"
-require "jobba/utils"
-require "jobba/configuration"
-require "jobba/common"
-require "jobba/redis_with_expiration"
-require "jobba/state"
-require "jobba/status"
-require "jobba/statuses"
-require "jobba/query"
+require 'jobba/version'
+require 'jobba/exceptions'
+require 'jobba/time'
+require 'jobba/utils'
+require 'jobba/configuration'
+require 'jobba/common'
+require 'jobba/redis_with_expiration'
+require 'jobba/state'
+require 'jobba/status'
+require 'jobba/statuses'
+require 'jobba/query'
 
 module Jobba
-
   class << self
     extend Forwardable
 
@@ -34,6 +33,8 @@ module Jobba
   end
 
   def self.redis
+    return @transaction if @transaction
+
     @redis ||= Jobba::RedisWithExpiration.new(
       Redis::Namespace.new(
         configuration.namespace,
@@ -42,7 +43,24 @@ module Jobba
     )
   end
 
-  def self.cleanup(seconds_ago: 60*60*24*30*12, batch_size: 1000)
+  def self.transaction(&block)
+    return @transaction unless block_given?
+
+    if @transaction
+      block.call(@transaction)
+    else
+      redis.multi do |trn|
+        @transaction = trn
+        begin
+          block.call(@transaction)
+        ensure
+          @transaction = nil
+        end
+      end
+    end
+  end
+
+  def self.cleanup(seconds_ago: 60 * 60 * 24 * 30 * 12, batch_size: 1000)
     start_time = Jobba::Time.now
     delete_before = start_time - seconds_ago
 
@@ -62,5 +80,4 @@ module Jobba
   def self.clear_all_jobba_data!
     cleanup(seconds_ago: 0)
   end
-
 end

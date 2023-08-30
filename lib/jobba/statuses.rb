@@ -1,5 +1,4 @@
 class Jobba::Statuses
-
   include Jobba::Common
   extend Forwardable
 
@@ -26,7 +25,7 @@ class Jobba::Statuses
     if any?(&:incomplete?)
       raise(Jobba::NotCompletedError,
             "This status cannot be deleted because it isn't complete.  Use " \
-            "`delete_all!` if you want to delete anyway.")
+            '`delete_all!` if you want to delete anyway.')
     end
 
     delete_all!
@@ -38,7 +37,7 @@ class Jobba::Statuses
     # preload prior attempts because loading them is not `multi`-friendly
     @cache.each { |cache| cache.prior_attempts.each(&:prior_attempts) }
 
-    redis.multi do
+    transaction do
       @cache.each(&:delete!)
     end
     @cache = []
@@ -47,15 +46,15 @@ class Jobba::Statuses
 
   def request_kill_all!
     load
-    redis.multi do
+    transaction do
       @cache.each(&:request_kill!)
     end
   end
 
   def multi(&block)
     load
-    redis.multi do
-      @cache.each{|status| block.call(status, redis)}
+    transaction do
+      @cache.each { |status| block.call(status, redis) }
     end
   end
 
@@ -66,11 +65,11 @@ class Jobba::Statuses
   end
 
   def get_all!
-    id_keys = @ids.collect{|id| "id:#{id}"}
+    id_keys = @ids.collect { |id| "id:#{id}" }
 
     raw_statuses = redis.pipelined do
       id_keys.each do |key|
-        redis.hgetall(key)
+        hgetall(key)
       end
     end
 
@@ -83,6 +82,7 @@ class Jobba::Statuses
 
   def modify!(method, &block)
     raise Jobba::NotImplemented unless block_given?
+
     load
     if @cache.send(method, &block).nil?
       nil
@@ -96,5 +96,4 @@ class Jobba::Statuses
     @ids = [ids].flatten.compact
     @cache = nil
   end
-
 end
