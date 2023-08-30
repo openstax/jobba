@@ -25,7 +25,7 @@ module Jobba
     # exists in the store, returns a job with 'unknown' state and sets it
     # in the store
     def self.find!(id)
-      find(id) || create(id:)
+      find(id) || create(id: id)
     end
 
     # Finds the job with the specified ID and returns it.  If no such ID
@@ -111,7 +111,7 @@ module Jobba
 
     def set_progress(at, out_of = nil)
       progress = compute_fractional_progress(at, out_of)
-      set(progress:)
+      set(progress: progress)
     end
 
     def set_job_name(job_name)
@@ -120,7 +120,7 @@ module Jobba
 
       transaction do |trn|
         trn.srem(job_name_key, id)
-        set(job_name:)
+        set(job_name: job_name)
         trn.sadd(job_name_key, id)
       end
     end
@@ -147,7 +147,7 @@ module Jobba
 
       transaction do |trn|
         trn.srem(provider_job_id_key, id)
-        set(provider_job_id:)
+        set(provider_job_id: provider_job_id)
         trn.sadd(provider_job_id_key, id)
       end
     end
@@ -156,7 +156,7 @@ module Jobba
       raise ArgumentError, 'The argument to `add_error` cannot be nil', caller if error.nil?
 
       errors.push(normalize_for_json(error))
-      set(errors:)
+      set(errors: errors)
     end
 
     def save(data)
@@ -206,15 +206,15 @@ module Jobba
       # set the restarted values
 
       restarted_values = {
-        id:,
+        id: id,
         attempt: attempt + 1,
-        recorded_at:,
-        queued_at:,
+        recorded_at: recorded_at,
+        queued_at: queued_at,
         progress: 0,
         errors: [],
-        job_name:,
-        job_args:,
-        provider_job_id:
+        job_name: job_name,
+        job_args: job_args,
+        provider_job_id: provider_job_id,
       }
 
       archive_attempt!
@@ -231,7 +231,7 @@ module Jobba
     end
 
     def move_to_state!(state)
-      set(state:, state.timestamp_name_key => Jobba::Time.now)
+      set(state: state, state.timestamp_name_key => Jobba::Time.now)
     end
 
     def initialize(attrs = {})
@@ -255,10 +255,10 @@ module Jobba
 
       transaction do
         set(
-          id:,
-          progress:,
-          errors:,
-          attempt:
+          id: id,
+          progress: progress,
+          errors: errors,
+          attempt: attempt
         )
         move_to_state!(state)
       end
