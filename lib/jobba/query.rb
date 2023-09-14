@@ -3,14 +3,13 @@ require 'jobba/id_clause'
 require 'jobba/clause_factory'
 
 class Jobba::Query
-
   include Jobba::Common
 
   attr_reader :_limit, :_offset
 
   def where(options)
-    options.each do |kk,vv|
-      clauses.push(Jobba::ClauseFactory.new_clause(kk,vv))
+    options.each do |kk, vv|
+      clauses.push(Jobba::ClauseFactory.new_clause(kk, vv))
     end
 
     self
@@ -72,20 +71,20 @@ class Jobba::Query
     end
 
     # Standalone method that gives the final result when the query is one clause
-    def handle_single_clause(clause)
-      raise "AbstractMethod"
+    def handle_single_clause(_clause)
+      raise 'AbstractMethod'
     end
 
     # When the query is multiple clauses, this method is called on the final set
     # that represents the ANDing of all clauses.  It is called inside a `redis.multi`
     # block.
-    def multi_clause_last_redis_op(result_set)
-      raise "AbstractMethod"
+    def multi_clause_last_redis_op(_result_set)
+      raise 'AbstractMethod'
     end
 
     # Called on the output from the redis multi block for multi-clause queries.
-    def multi_clause_postprocess(redis_output)
-      raise "AbstractMethod"
+    def multi_clause_postprocess(_redis_output)
+      raise 'AbstractMethod'
     end
   end
 
@@ -121,9 +120,7 @@ class Jobba::Query
   end
 
   def _run(operations)
-    if _limit.nil? && !_offset.nil?
-      raise ArgumentError, "`limit` must be set if `offset` is set", caller
-    end
+    raise ArgumentError, '`limit` must be set if `offset` is set', caller if _limit.nil? && !_offset.nil?
 
     load_default_clause if clauses.empty?
 
@@ -145,8 +142,7 @@ class Jobba::Query
       #
       # This code also works for the single clause case, but it is less efficient
 
-      multi_result = redis.multi do
-
+      multi_result = transaction do |trn|
         working_set = nil
 
         clauses.each do |clause|
@@ -155,15 +151,15 @@ class Jobba::Query
           if working_set.nil?
             working_set = clause_set
           else
-            redis.zinterstore(working_set, [working_set, clause_set], weights: [0, 0])
-            redis.del(clause_set)
+            trn.zinterstore(working_set, [working_set, clause_set], weights: [0, 0])
+            trn.del(clause_set)
           end
         end
 
         # This is later accessed as `multi_result[-2]` since it is the second to last output
         operations.multi_clause_last_redis_op(working_set)
 
-        redis.del(working_set)
+        trn.del(working_set)
       end
 
       operations.multi_clause_postprocess(multi_result[-2])
@@ -173,5 +169,4 @@ class Jobba::Query
   def load_default_clause
     where(state: Jobba::State::ALL.collect(&:name))
   end
-
 end

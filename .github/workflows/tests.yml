@@ -12,12 +12,12 @@ on:
 jobs:
   tests:
     timeout-minutes: 30
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu]
-        ruby: [ '2.5', '2.6', '2.7' ]
+        ruby: [ '2.6', '2.7', '3.0', '3.1' ]
     services:
       # Label used to access the service container
       redis:
@@ -32,7 +32,7 @@ jobs:
           # Maps port 6379 on service container to the host
           - 6379:6379
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}

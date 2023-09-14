@@ -3,7 +3,6 @@ require 'oj'
 
 module Jobba
   class Status
-
     include Jobba::Common
 
     def self.all
@@ -40,8 +39,8 @@ module Jobba
     end
 
     def self.local_attrs
-      %w(id state progress errors data kill_requested_at
-        job_name job_args provider_job_id attempt prior_attempts) +
+      %w[id state progress errors data kill_requested_at
+         job_name job_args provider_job_id attempt prior_attempts] +
         State::ALL.collect(&:timestamp_name)
     end
 
@@ -56,7 +55,7 @@ module Jobba
     # As an extra step, convert state names into State objects.
 
     local_attrs.each do |attribute|
-      class_eval <<-eoruby
+      class_eval <<-EORUBY, __FILE__, __LINE__ + 1
         def #{attribute}
           @#{attribute} ||= load_from_json_encoded_attrs('#{attribute}')
         end
@@ -64,12 +63,12 @@ module Jobba
         protected
 
         attr_writer :#{attribute}
-      eoruby
+      EORUBY
     end
 
     State::ENTERABLE.each do |state|
       define_method("#{state.name}!") do
-        redis.multi do
+        transaction do
           if state == State::STARTED && did_start?
             restart!
           elsif state != self.state
@@ -96,14 +95,14 @@ module Jobba
     end
 
     def did_start?
-      !self.started_at.nil?
+      !started_at.nil?
     end
 
     def request_kill!
       time, usec_int = now
-      if redis.hsetnx(job_key, :kill_requested_at, usec_int)
-        @kill_requested_at = time
-      end
+      return unless redis.hsetnx(job_key, :kill_requested_at, usec_int)
+
+      @kill_requested_at = time
     end
 
     def kill_requested?
@@ -116,24 +115,26 @@ module Jobba
     end
 
     def set_job_name(job_name)
-      raise ArgumentError, "`job_name` must not be blank", caller \
+      raise ArgumentError, '`job_name` must not be blank', caller \
         if job_name.nil? || job_name.empty?
 
-      redis.multi do
-        redis.srem(job_name_key, id)
+      transaction do |trn|
+        trn.srem(job_name_key, id)
         set(job_name: job_name)
-        redis.sadd(job_name_key, id)
+        trn.sadd(job_name_key, id)
       end
     end
 
-    def set_job_args(args_hash={})
-      raise ArgumentError,
-            "All values in the hash passed to `set_job_args` must be strings",
-            caller if args_hash.values.any?{|val| !val.is_a?(String)}
+    def set_job_args(args_hash = {})
+      if args_hash.values.any? { |val| !val.is_a?(String) }
+        raise ArgumentError,
+              'All values in the hash passed to `set_job_args` must be strings',
+              caller
+      end
 
       args_hash = normalize_for_json(args_hash)
 
-      redis.multi do
+      transaction do
         delete_self_from_job_args_set!
         set(job_args: args_hash)
         add_self_to_job_args_set!
@@ -141,18 +142,18 @@ module Jobba
     end
 
     def set_provider_job_id(provider_job_id)
-      raise ArgumentError, "`provider_job_id` must not be blank", caller \
+      raise ArgumentError, '`provider_job_id` must not be blank', caller \
         if provider_job_id.nil? || (provider_job_id.respond_to?(:empty?) && provider_job_id.empty?)
 
-      redis.multi do
-        redis.srem(provider_job_id_key, id)
+      transaction do |trn|
+        trn.srem(provider_job_id_key, id)
         set(provider_job_id: provider_job_id)
-        redis.sadd(provider_job_id_key, id)
+        trn.sadd(provider_job_id_key, id)
       end
     end
 
     def add_error(error)
-      raise ArgumentError, "The argument to `add_error` cannot be nil", caller if error.nil?
+      raise ArgumentError, 'The argument to `add_error` cannot be nil', caller if error.nil?
 
       errors.push(normalize_for_json(error))
       set(errors: errors)
@@ -171,11 +172,13 @@ module Jobba
     end
 
     def delete
-      completed? ?
-        delete! :
-        raise(NotCompletedError, "This status cannot be deleted because it " \
-                                 "isn't complete.  Use `delete!` if you want to " \
-                                 "delete anyway.")
+      if completed?
+        delete!
+      else
+        raise(NotCompletedError, 'This status cannot be deleted because it ' \
+                                       "isn't complete.  Use `delete!` if you want to " \
+                                       'delete anyway.')
+      end
     end
 
     def delete!
@@ -184,7 +187,7 @@ module Jobba
     end
 
     def prior_attempts
-      @prior_attempts ||= [*0..attempt-1].collect{|ii| self.class.find!("#{id}:#{ii}")}
+      @prior_attempts ||= [*0..attempt - 1].collect { |ii| self.class.find!("#{id}:#{ii}") }
     end
 
     protected
@@ -204,14 +207,14 @@ module Jobba
 
       restarted_values = {
         id: id,
-        attempt: attempt+1,
+        attempt: attempt + 1,
         recorded_at: recorded_at,
         queued_at: queued_at,
         progress: 0,
         errors: [],
         job_name: job_name,
         job_args: job_args,
-        provider_job_id: provider_job_id
+        provider_job_id: provider_job_id,
       }
 
       archive_attempt!
@@ -236,29 +239,28 @@ module Jobba
 
       @json_encoded_attrs = attrs[:raw]
 
-      if @json_encoded_attrs.nil? || @json_encoded_attrs.empty?
+      return unless @json_encoded_attrs.nil? || @json_encoded_attrs.empty?
 
-        @id       = attrs[:id]       || SecureRandom.uuid
-        @state    = attrs[:state]    || State::UNKNOWN
-        @progress = attrs[:progress] || 0
-        @errors   = attrs[:errors]   || []
-        @data     = attrs[:data]
-        @attempt  = attrs[:attempt]  || 0
-        @job_args = attrs[:job_args] || {}
-        @job_name = attrs[:job_name]
-        @provider_job_id = attrs[:provider_job_id]
+      @id       = attrs[:id]       || SecureRandom.uuid
+      @state    = attrs[:state]    || State::UNKNOWN
+      @progress = attrs[:progress] || 0
+      @errors   = attrs[:errors]   || []
+      @data     = attrs[:data]
+      @attempt  = attrs[:attempt]  || 0
+      @job_args = attrs[:job_args] || {}
+      @job_name = attrs[:job_name]
+      @provider_job_id = attrs[:provider_job_id]
 
-        if attrs[:persist]
-          redis.multi do
-            set(
-              id: id,
-              progress: progress,
-              errors: errors,
-              attempt: attempt
-            )
-            move_to_state!(state)
-          end
-        end
+      return unless attrs[:persist]
+
+      transaction do
+        set(
+          id: id,
+          progress: progress,
+          errors: errors,
+          attempt: attempt
+        )
+        move_to_state!(state)
       end
     end
 
@@ -310,6 +312,7 @@ module Jobba
 
     def set_state_in_redis(hash)
       return unless hash[:state]
+
       redis.srem(state.name, id) unless state.nil? # leave old state if set
       redis.sadd(hash[:state].name, id)            # enter new state
     end
@@ -324,11 +327,11 @@ module Jobba
     end
 
     def set_hash_locally(hash)
-      hash.each{ |key, value| self.send("#{key}=", value) }
+      hash.each { |key, value| send("#{key}=", value) }
     end
 
     def delete_in_redis!
-      redis.multi do
+      transaction do
         redis.del(job_key)
 
         State::ALL.each do |state|
@@ -353,31 +356,32 @@ module Jobba
     end
 
     def delete_self_from_job_args_set!
-      self.job_args.values.each do |arg|
+      job_args.values.each do |arg|
         redis.srem(job_arg_key(arg), id)
       end
     end
 
     def add_self_to_job_args_set!
-      self.job_args.values.each do |arg|
+      job_args.values.each do |arg|
         redis.sadd(job_arg_key(arg), id)
       end
     end
 
     def clear_attrs
-      self.class.local_attrs.each{|aa| send("#{aa}=",nil)}
+      self.class.local_attrs.each { |aa| send("#{aa}=", nil) }
     end
 
     def job_name_key
       "job_name:#{job_name}"
     end
 
-    def job_key(attempt=nil)
+    def job_key(attempt = nil)
       self.class.job_key(id, attempt)
     end
 
-    def self.job_key(id, attempt=nil)
-      raise ArgumentError, "`id` cannot be nil", caller if id.nil?
+    def self.job_key(id, attempt = nil)
+      raise ArgumentError, '`id` cannot be nil', caller if id.nil?
+
       attempt.nil? ? "id:#{id}" : "id:#{id}:#{attempt}"
     end
 
@@ -390,20 +394,21 @@ module Jobba
     end
 
     def job_errors_key(id)
-      raise ArgumentError, "`id` cannot be nil", caller if id.nil?
+      raise ArgumentError, '`id` cannot be nil', caller if id.nil?
+
       "#{id}:errors"
     end
 
     def compute_fractional_progress(at, out_of)
       if at.nil?
-        raise ArgumentError, "Must specify at least `at` argument to `progress` call", caller
+        raise ArgumentError, 'Must specify at least `at` argument to `progress` call', caller
       elsif at < 0
         raise ArgumentError, "progress cannot be negative (at=#{at})", caller
       elsif out_of && out_of < at
-        raise ArgumentError, "`out_of` must be greater than `at` in `progress` calls", caller
+        raise ArgumentError, '`out_of` must be greater than `at` in `progress` calls', caller
       elsif out_of.nil? && (at < 0 || at > 1)
         raise ArgumentError,
-              "If `out_of` not specified, `at` must be in the range [0.0, 1.0]",
+              'If `out_of` not specified, `at` must be in the range [0.0, 1.0]',
               caller
       end
 
@@ -413,6 +418,5 @@ module Jobba
     def now
       [time = Jobba::Time.now, Utils.time_to_usec_int(time)]
     end
-
   end
 end
